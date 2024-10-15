@@ -75,10 +75,11 @@
             <el-input v-model="form.orderReferralFee" style="width: 370px;" />
           </el-form-item>
           <el-form-item label="订单金额">
-            <el-input v-model="form.orderAmount" style="width: 370px;" />
+            <el-input v-model="form.orderAmount" :disabled="!canEditStatus" style="width: 370px;" />
           </el-form-item>
+
           <el-form-item label="佣金">
-            <el-input v-model="form.orderCommission" style="width: 370px;" />
+            <el-input v-model="form.orderCommission" :disabled="!canEditStatus" style="width: 370px;" />
           </el-form-item>
           <el-form-item label="备注">
             <el-input v-model="form.orderRemark" style="width: 370px;" />
@@ -134,22 +135,56 @@
 </template>
 
 <script>
-import crudOrder from '@/api/order/order'
+import request from '@/utils/request' // 确保 request 引入正确
 import CRUD, { presenter, header, form, crud } from '@crud/crud'
 import rrOperation from '@crud/RR.operation'
 import crudOperation from '@crud/CRUD.operation'
 import udOperation from '@crud/UD.operation'
 import pagination from '@crud/Pagination'
+import crudOrder from '@/api/order/order'
 
-const defaultForm = { orderId: null, orderNumber: null, orderStatus: null, orderAccountUsername: null, orderAccountPassword: null, orderAppId: null, orderAppName: null, orderSellerId: null, orderSellerName: null, orderSellerSsn: null, orderContactInfo: null, orderPaymentMethod: null, orderContactOther: null, orderReferrerId: null, orderReferrerName: null, orderReferrerSsn: null, orderReferrerInfo: null, orderReferrerOther: null, orderReferrerMethod: null, orderReferralFee: null, orderAmount: null, orderEmployeeId: null, orderCommission: null, orderCreatedAt: null, orderUpdatedAt: null, orderRemark: null }
+const defaultForm = {
+  orderId: null,
+  orderNumber: null,
+  orderStatus: null,
+  orderAccountUsername: null,
+  orderAccountPassword: null,
+  orderAppId: null,
+  orderAppName: null,
+  orderSellerId: null,
+  orderSellerName: null,
+  orderSellerSsn: null,
+  orderContactInfo: null,
+  orderPaymentMethod: null,
+  orderContactOther: null,
+  orderReferrerId: null,
+  orderReferrerName: null,
+  orderReferrerSsn: null,
+  orderReferrerInfo: null,
+  orderReferrerOther: null,
+  orderReferrerMethod: null,
+  orderReferralFee: null,
+  orderAmount: null,
+  orderEmployeeId: null,
+  orderCommission: null,
+  orderCreatedAt: null,
+  orderUpdatedAt: null,
+  orderRemark: null
+}
+
 export default {
   name: 'Order',
   components: { pagination, crudOperation, rrOperation, udOperation },
   mixins: [presenter(), header(), form(defaultForm), crud()],
   dicts: ['bus_order_status', 'bus_appName'],
   cruds() {
-    // 使用 crudOrder，确保这个变量已正确引入
-    return CRUD({ title: '订单管理', url: 'api/order', idField: 'orderId', sort: 'orderId,desc', crudMethod: { ...crudOrder }})
+    return CRUD({
+      title: '订单管理',
+      url: 'api/order',
+      idField: 'orderId',
+      sort: 'orderId,desc',
+      crudMethod: { ...crudOrder }
+    })
   },
   data() {
     return {
@@ -186,37 +221,45 @@ export default {
       ]
     }
   },
-  mounted() {
+  async mounted() {
     // 页面加载时获取用户信息
-    this.$http.get('auth/info').then(response => {
-      // 调试输出，查看返回数据
-      console.log(response.data)
-      this.userInfo = response.data
-
-      // 判断用户是否有权限编辑订单状态
-      if (this.allowedDeptIds.includes(this.userInfo.dept_id)) {
-        this.canEditStatus = true
-      }
-    }).catch(error => {
+    try {
+      await this.getUserInfo()
+    } catch (error) {
       console.error('获取用户信息失败', error)
-    })
+    }
   },
   methods: {
-    // 获取用户信息
-    getUserInfo() {
-      // 模拟 API 调用，根据实际情况调用你的用户 API
-      this.$http.get('/api/users').then(response => {
-        this.userInfo = response.data
+    async getUserInfo() {
+      try {
+        const response = await request.get('/api/users/getDeptInfo') // 使用封装过的 request
+        console.log('完整的 response:', response)
 
-        // 判断用户是否有权限编辑订单状态
-        if (this.allowedDeptIds.includes(this.userInfo.dept_id)) { // 替换为允许编辑订单状态的部门ID列表
-          this.canEditStatus = true
+        // 使用解构赋值方式从 response 中提取数据
+        const { dept_id, username } = response
+
+        // 确保解构赋值有效
+        if (dept_id && username) {
+          // 浅拷贝到一个新的对象，避免被 Vue 响应式系统处理
+          this.userInfo = { dept_id, username }
+
+          console.log('userInfo:', this.userInfo)
+
+          // 判断是否有权限编辑订单状态
+          if (this.allowedDeptIds.includes(String(this.userInfo.dept_id))) {
+            this.canEditStatus = true
+            // 输出 canEditStatus 的状态
+            console.log('canEditStatus 状态:', this.canEditStatus)
+          } else {
+            console.log('用户没有权限编辑订单状态')
+          }
+        } else {
+          console.error('dept_id 或 username 缺失！')
         }
-      }).catch(error => {
+      } catch (error) {
         console.error('获取用户信息失败', error)
-      })
+      }
     },
-
     // 钩子：在获取表格数据之前执行，false 则代表不获取数据
     [CRUD.HOOK.beforeRefresh]() {
       return true

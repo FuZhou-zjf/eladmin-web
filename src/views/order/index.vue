@@ -402,7 +402,9 @@ export default {
       sellerExists: null,
       canSubmit: false,
       canSubmitRecommender: false,
-      isFormValid: false
+      isFormValid: false,
+      debouncedSearchSeller: null,
+      debouncedSearchRecommender: null
     }
   },
   watch: {
@@ -416,10 +418,26 @@ export default {
       },
       deep: true
     },
-    'form.orderSellerName': 'searchSeller',
-    'form.orderSellerSsn': 'searchSeller',
-    'form.orderReferrerName': 'searchRecommender',
-    'form.orderReferrerInfo': 'searchRecommender'
+    'form.orderSellerName'() {
+      this.debouncedSearchSeller()
+    },
+    'form.orderSellerSsn'() {
+      this.debouncedSearchSeller()
+    },
+    'form.orderReferrerName'() {
+      this.debouncedSearchRecommender()
+    },
+    'form.orderReferrerInfo'() {
+      this.debouncedSearchRecommender()
+    }
+  },
+  beforeDestroy() {
+    if (this.debouncedSearchSeller) {
+      this.debouncedSearchSeller.cancel()
+    }
+    if (this.debouncedSearchRecommender) {
+      this.debouncedSearchRecommender.cancel()
+    }
   },
   async mounted() {
     try {
@@ -480,6 +498,13 @@ export default {
       this.canSubmit = false
       this.canSubmitRecommender = false
       this.sellerExists = null
+      // 取消防抖函数的挂起调用
+      if (this.debouncedSearchSeller) {
+        this.debouncedSearchSeller.cancel()
+      }
+      if (this.debouncedSearchRecommender) {
+        this.debouncedSearchRecommender.cancel()
+      }
       if (this.$refs.form) {
         this.$nextTick(() => {
           this.$refs.form.resetFields()

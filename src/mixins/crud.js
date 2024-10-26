@@ -116,7 +116,7 @@ export default {
       this.init()
     },
     /**
-     * 通用的提示封装
+     * 通用的提示封装a
      */
     submitSuccessNotify() {
       this.$notify({

@@ -23,5 +23,21 @@ export function edit(data) {
     data
   })
 }
+// 检查卖家是否存在
+export function checkSellerExists(params) {
+  return request({
+    url: 'api/sellerInfo/checkSellerExists',
+    method: 'get',
+    params
+  })
+}
 
-export default { add, edit, del }
+// 检查推荐人是否存在
+export function checkRecommenderExists(params) {
+  return request({
+    url: 'api/sellerInfo/checkRecommenderExists',
+    method: 'get',
+    params
+  })
+}
+export default { add, edit, del, checkRecommenderExists, checkSellerExists }

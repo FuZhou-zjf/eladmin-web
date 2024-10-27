@@ -10,8 +10,11 @@
         <el-input v-model="query.accountUsername" clearable placeholder="账号名" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
         <label class="el-form-item-label">账号状态</label>
         <el-input v-model="query.accountStatus" clearable placeholder="账号状态" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
-        <label class="el-form-item-label">创建时间</label>
-        <el-input v-model="query.createdAt" clearable placeholder="创建时间" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
+        <!-- 日期范围选择器 -->
+        <label class="el-form-item-label">日期范围</label>
+        <date-range-picker v-model="query.createTime" class="date-item" />
+        <label class="el-form-item-label">全名</label>
+        <el-input v-model="query.fullName" clearable placeholder="全名" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
         <label class="el-form-item-label">SSN或EIN</label>
         <el-input v-model="query.ssn" clearable placeholder="SSN或EIN" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
         <rrOperation :crud="crud" />
@@ -20,7 +23,55 @@
       <crudOperation :permission="permission" />
       <!--表单组件-->
       <el-dialog :close-on-click-modal="false" :before-close="crud.cancelCU" :visible.sync="crud.status.cu > 0" :title="crud.status.title" width="500px">
-        <el-form ref="form" :model="form" :rules="rules" size="small" label-width="80px" />
+        <el-form ref="form" :model="form" :rules="rules" size="small" label-width="80px">
+          <el-form-item label="App名称">
+            <el-select v-model="form.appName" filterable placeholder="请选择">
+              <el-option
+                v-for="item in dict.bus_appName"
+                :key="item.id"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="账号名">
+            <el-input v-model="form.accountUsername" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="账号密码">
+            <el-input v-model="form.accountPassword" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="账号状态">
+            <el-select v-model="form.accountStatus" filterable placeholder="请选择">
+              <el-option
+                v-for="item in dict.bus_order_status"
+                :key="item.id"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="全名">
+            <el-input v-model="form.fullName" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="SSN或EIN">
+            <el-input v-model="form.ssn" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="联系电话">
+            <el-input v-model="form.phoneNumber" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="电子邮件">
+            <el-input v-model="form.email" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="安全问题">
+            <el-input v-model="form.securityQuestion" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="答案">
+            <el-input v-model="form.securityAnswer" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="备注">
+            <el-input v-model="form.remark" :rows="3" type="textarea" style="width: 370px;" />
+          </el-form-item>
+        </el-form>
         <div slot="footer" class="dialog-footer">
           <el-button type="text" @click="crud.cancelCU">取消</el-button>
           <el-button :loading="crud.status.cu === 2" type="primary" @click="crud.submitCU">确认</el-button>
@@ -43,10 +94,10 @@
         </el-table-column>
         <el-table-column prop="createdAt" label="创建时间" />
         <el-table-column prop="updatedAt" label="更新时间" />
+        <el-table-column prop="fullName" label="全名" />
         <el-table-column prop="ssn" label="SSN或EIN" />
         <el-table-column prop="phoneNumber" label="联系电话" />
         <el-table-column prop="email" label="电子邮件" />
-        <el-table-column prop="bankAccountNumber" label="银行账号" />
         <el-table-column prop="securityQuestion" label="安全问题" />
         <el-table-column prop="securityAnswer" label="答案" />
         <el-table-column prop="remark" label="备注" />
@@ -72,11 +123,13 @@ import rrOperation from '@crud/RR.operation'
 import crudOperation from '@crud/CRUD.operation'
 import udOperation from '@crud/UD.operation'
 import pagination from '@crud/Pagination'
+import DateRangePicker from '@/components/DateRangePicker/index.vue'
+import { format } from 'date-fns'
 
 const defaultForm = { accountId: null, appName: null, accountUsername: null, accountPassword: null, accountStatus: null, createdAt: null, updatedAt: null, fullName: null, ssn: null, birthDate: null, addressLine1: null, addressLine2: null, city: null, state: null, postalCode: null, phoneNumber: null, email: null, bankAccountNumber: null, bankRoutingNumber: null, governmentIdNumber: null, securityQuestion: null, securityAnswer: null, remark: null }
 export default {
   name: 'AppInfo',
-  components: { pagination, crudOperation, rrOperation, udOperation },
+  components: { DateRangePicker, pagination, crudOperation, rrOperation, udOperation },
   mixins: [presenter(), header(), form(defaultForm), crud()],
   dicts: ['bus_appName', 'bus_order_status'],
   cruds() {
@@ -96,14 +149,31 @@ export default {
         { key: 'accountUsername', display_name: '账号名' },
         { key: 'accountStatus', display_name: '账号状态' },
         { key: 'createdAt', display_name: '创建时间' },
+        { key: 'fullName', display_name: '全名' },
         { key: 'ssn', display_name: 'SSN或EIN' }
       ]
     }
   },
+  formatDate(date) {
+    const year = date.getFullYear()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    return `${year}-${month}-${day}`
+  },
   methods: {
-    // 钩子：在获取表格数据之前执行，false 则代表不获取数据
     [CRUD.HOOK.beforeRefresh]() {
-      return true
+      // 判断是否存在日期范围
+      if (this.query.createTime && this.query.createTime.length === 2) {
+        const [startDate, endDate] = this.query.createTime
+
+        // 格式化日期为 'YYYY-MM-DD HH:mm:ss'
+        this.query.startDate = format(startDate, 'YYYY-MM-DD HH:mm:ss')
+        this.query.endDate = format(endDate, 'YYYY-MM-DD HH:mm:ss')
+
+        console.log('Formatted Start Date:', this.query.startDate)
+        console.log('Formatted End Date:', this.query.endDate)
+      }
+      return true // 确保刷新成功
     }
   }
 }

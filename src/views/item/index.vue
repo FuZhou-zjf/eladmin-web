@@ -6,17 +6,20 @@
         <!-- 搜索 -->
         <label class="el-form-item-label">name</label>
         <el-input v-model="query.name" clearable placeholder="name" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
-        <date-range-picker
-          v-model="query.price"
-          start-placeholder="priceStart"
-          end-placeholder="priceStart"
-          class="date-item"
-        />
+
+        <label class="el-form-item-label">orderStatus</label>
+        <el-input v-model="query.orderStatus" clearable placeholder="orderStatus" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
+
+        <!-- 日期范围选择器 -->
+        <label class="el-form-item-label">Date Range</label>
+        <date-range-picker v-model="query.createTime" class="date-item" />
         <rrOperation :crud="crud" />
       </div>
-      <!--如果想在工具栏加入更多按钮，可以使用插槽方式， slot = 'left' or 'right'-->
+
+      <!-- 如果想在工具栏加入更多按钮，可以使用插槽方式， slot = 'left' or 'right' -->
       <crudOperation :permission="permission" />
-      <!--表单组件-->
+
+      <!-- 表单组件 -->
       <el-dialog :close-on-click-modal="false" :before-close="crud.cancelCU" :visible.sync="crud.status.cu > 0" :title="crud.status.title" width="500px">
         <el-form ref="form" :model="form" :rules="rules" size="small" label-width="80px">
           <el-form-item label="name" prop="name">
@@ -50,7 +53,8 @@
           <el-button :loading="crud.status.cu === 2" type="primary" @click="crud.submitCU">确认</el-button>
         </div>
       </el-dialog>
-      <!--表格渲染-->
+
+      <!-- 表格渲染 -->
       <el-table ref="table" v-loading="crud.loading" :data="crud.data" size="small" style="width: 100%;" @selection-change="crud.selectionChangeHandler">
         <el-table-column type="selection" width="55" />
         <el-table-column prop="name" label="name" />
@@ -72,7 +76,8 @@
           </template>
         </el-table-column>
       </el-table>
-      <!--分页组件-->
+
+      <!-- 分页组件 -->
       <pagination />
     </div>
   </div>
@@ -85,11 +90,13 @@ import rrOperation from '@crud/RR.operation'
 import crudOperation from '@crud/CRUD.operation'
 import udOperation from '@crud/UD.operation'
 import pagination from '@crud/Pagination'
+import { format } from 'date-fns'
+import DateRangePicker from '@/components/DateRangePicker'
 
 const defaultForm = { id: null, name: null, price: null, quantity: null, createdAt: null, updatedAt: null, orderStatus: null }
 export default {
   name: 'Item',
-  components: { pagination, crudOperation, rrOperation, udOperation },
+  components: { pagination, crudOperation, rrOperation, udOperation, DateRangePicker },
   mixins: [presenter(), header(), form(defaultForm), crud()],
   dicts: ['bus_order_status'],
   cruds() {
@@ -110,20 +117,37 @@ export default {
           { required: true, message: '不能为空', trigger: 'blur' }
         ]
       },
-      queryTypeOptions: [
-        { key: 'name', display_name: 'name' }
-      ]
+      query: {
+        name: '',
+        orderStatus: '',
+        dateRange: [] // 新增的日期范围查询
+      }
     }
   },
+  formatDate(date) {
+    const year = date.getFullYear()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    return `${year}-${month}-${day}`
+  },
   methods: {
-    // 钩子：在获取表格数据之前执行，false 则代表不获取数据
     [CRUD.HOOK.beforeRefresh]() {
-      return true
+      // 判断是否存在日期范围
+      if (this.query.createTime && this.query.createTime.length === 2) {
+        const [startDate, endDate] = this.query.createTime
+
+        // 格式化日期为 'YYYY-MM-DD HH:mm:ss'
+        this.query.startDate = format(startDate, 'YYYY-MM-DD')
+        this.query.endDate = format(endDate, 'YYYY-MM-DD')
+
+        console.log('Formatted Start Date:', this.query.startDate)
+        console.log('Formatted End Date:', this.query.endDate)
+      }
+      return true // 确保刷新成功
     }
   }
 }
 </script>
 
 <style scoped>
-
 </style>

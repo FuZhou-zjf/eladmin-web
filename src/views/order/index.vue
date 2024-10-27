@@ -49,6 +49,9 @@
           class="filter-item"
           @keyup.enter.native="crud.toQuery"
         />
+        <!-- 日期范围选择器 -->
+        <label class="el-form-item-label">日期范围</label>
+        <date-range-picker v-model="query.createTime" class="date-item" />
         <rrOperation :crud="crud" />
       </div>
       <!--更多按钮-->
@@ -236,6 +239,9 @@ import pagination from '@crud/Pagination'
 import crudOrder from '@/api/order/order'
 import Inputmask from 'inputmask'
 import _ from 'lodash'
+import { format } from 'date-fns'
+
+import DateRangePicker from '@/components/DateRangePicker/index.vue'
 
 const defaultForm = {
   orderId: null,
@@ -266,7 +272,7 @@ const defaultForm = {
 
 export default {
   name: 'Order',
-  components: { pagination, crudOperation, rrOperation, udOperation },
+  components: { DateRangePicker, pagination, crudOperation, rrOperation, udOperation },
   mixins: [presenter(), header(), form(defaultForm), crud()],
   directives: {
     inputmask: {
@@ -404,8 +410,15 @@ export default {
       canSubmitRecommender: false,
       isFormValid: false,
       debouncedSearchSeller: null,
-      debouncedSearchRecommender: null
+      debouncedSearchRecommender: null,
+      createTime: []
     }
+  },
+  formatDate(date) {
+    const year = date.getFullYear()
+    const month = (date.getMonth() + 1).toString().padStart(2, '0')
+    const day = date.getDate().toString().padStart(2, '0')
+    return `${year}-${month}-${day}`
   },
   watch: {
     form: {
@@ -454,6 +467,26 @@ export default {
     }
   },
   methods: {
+    // 钩子：在获取表格数据之前执行
+    [CRUD.HOOK.beforeRefresh]() {
+      console.log('beforeRefresh 钩子触发')
+      // 判断是否存在日期范围
+      if (this.query.createTime && this.query.createTime.length === 2) {
+        const [startDate, endDate] = this.query.createTime
+
+        // 格式化日期为 'yyyy-MM-dd HH:mm:ss'
+        this.query.startDate = format(startDate, 'YYYY-MM-DD HH:mm:ss')
+        this.query.endDate = format(endDate, 'YYYY-MM-DD HH:mm:ss')
+
+        console.log('Formatted Start Date:', this.query.startDate)
+        console.log('Formatted End Date:', this.query.endDate)
+      } else {
+        // 清除之前的日期参数
+        delete this.query.startDate
+        delete this.query.endDate
+      }
+      return true // 确保刷新执行成功
+    },
     async getUserInfo() {
       try {
         const response = await request.get('/api/users/getDeptInfo')
@@ -652,11 +685,6 @@ export default {
           return false
         }
       })
-    },
-    // 钩子：在获取表格数据之前执行
-    [CRUD.HOOK.beforeRefresh]() {
-      console.log('beforeRefresh 钩子触发')
-      return true // 返回 true 继续执行数据刷新
     },
     // 钩子：提交表单前执行
     [CRUD.HOOK.beforeSubmit]() {

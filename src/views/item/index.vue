@@ -58,7 +58,11 @@
       <el-table ref="table" v-loading="crud.loading" :data="crud.data" size="small" style="width: 100%;" @selection-change="crud.selectionChangeHandler">
         <el-table-column type="selection" width="55" />
         <el-table-column prop="name" label="name" />
-        <el-table-column prop="price" label="price" />
+        <el-table-column
+          v-if="checkPermission(['admin'])"
+          prop="price"
+          label="price"
+        />
         <el-table-column prop="quantity" label="quantity" />
         <el-table-column prop="createdAt" label="createdAt" />
         <el-table-column prop="updatedAt" label="updatedAt" />
@@ -92,6 +96,7 @@ import udOperation from '@crud/UD.operation'
 import pagination from '@crud/Pagination'
 import { format } from 'date-fns'
 import DateRangePicker from '@/components/DateRangePicker'
+import checkPermission from '@/utils/permission'
 
 const defaultForm = { id: null, name: null, price: null, quantity: null, createdAt: null, updatedAt: null, orderStatus: null }
 export default {
@@ -131,6 +136,7 @@ export default {
     return `${year}-${month}-${day}`
   },
   methods: {
+    checkPermission,
     [CRUD.HOOK.beforeRefresh]() {
       // 判断是否存在日期范围
       if (this.query.createTime && this.query.createTime.length === 2) {

@@ -669,7 +669,7 @@ function presenter(crud) {
         this.$crud[ele.tag] = ele
         ele.registerVM('presenter', this, 0)
       })
-      this.crud = this.$crud['defalut'] || cruds[0]
+      this.crud = this.$crud['default'] || cruds[0]
     },
     methods: {
       parseTime

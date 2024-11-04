@@ -85,8 +85,23 @@ export default {
     },
     async fetchBarChartData() {
       try {
-        const { data } = await request.get('/api/bar-chart-data')
-        this.barChartData = data
+        const response = await request.get('/api/bar-chart-data')
+        const data = response.data
+
+        // 假设返回的数据结构如下：
+        // {
+        //   categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        //   series: [
+        //     { name: 'pageA', data: [79, 52, 200, 334, 390, 330, 220] },
+        //     { name: 'pageB', data: [80, 52, 200, 334, 390, 330, 220] },
+        //     { name: 'pageC', data: [30, 52, 200, 334, 390, 330, 220] }
+        //   ]
+        // }
+
+        this.barChartData = {
+          categories: data.categories,
+          series: data.series
+        }
       } catch (error) {
         console.error('Failed to fetch bar chart data:', error)
       }

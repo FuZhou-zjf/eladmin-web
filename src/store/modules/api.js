@@ -18,6 +18,10 @@ const api = {
     swaggerApi: baseUrl + '/doc.html',
     // 文件上传
     fileUploadApi: baseUrl + '/api/localStorage',
+    // 阿里云存储 API
+    aliyunUploadApi: baseUrl + '/api/aliyunStorage',
+    // 百度网盘存储 API
+    baiduUploadApi: baseUrl + '/api/baiduStorage',
     // baseUrl，
     baseApi: baseUrl
   }

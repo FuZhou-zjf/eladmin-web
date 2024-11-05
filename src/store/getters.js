@@ -19,6 +19,9 @@ const getters = {
   qiNiuUploadApi: state => state.api.qiNiuUploadApi,
   sqlApi: state => state.api.sqlApi,
   swaggerApi: state => state.api.swaggerApi,
-  sidebarRouters: state => state.permission.sidebarRouters
+  sidebarRouters: state => state.permission.sidebarRouters,
+  aliyunUploadApi: state => state.api.aliyunUploadApi,
+  localUploadApi: state => state.api.localUploadApi,
+  baiduUploadApi: state => state.api.baiduUploadApi
 }
 export default getters

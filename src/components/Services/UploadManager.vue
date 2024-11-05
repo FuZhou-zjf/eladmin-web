@@ -8,8 +8,8 @@
         <el-form-item label="选择上传路径">
           <el-select v-model="selectedStorageType" placeholder="选择上传路径">
             <el-option label="本地存储" value="local" />
-            <el-option label="云端存储" value="cloud" />
-            <!-- 可以添加更多存储类型 -->
+            <el-option label="阿里云存储" value="aliyun" />
+            <el-option label="百度网盘存储" value="baidu" />
           </el-select>
         </el-form-item>
 
@@ -17,6 +17,7 @@
         <el-form-item label="选择文件">
           <el-upload
             ref="fileUpload"
+            :action="action + '?name=' + encodeURIComponent(uploadForm.fileName)"
             :file-list="fileList"
             :auto-upload="false"
             :multiple="multiple"
@@ -82,6 +83,7 @@
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
 import { uploadFile, deleteFile } from '@/api/upload/upload'
 
 export default {
@@ -103,6 +105,18 @@ export default {
     }
   },
   computed: {
+    ...mapGetters([
+      'fileUploadApi', // 本地存储
+      'aliyunUploadApi', // 阿里云存储
+      'baiduUploadApi' // 百度网盘存储
+    ]),
+    action() {
+      const actionUrl = this.selectedStorageType === 'aliyun' ? this.aliyunUploadApi
+        : this.selectedStorageType === 'baidu' ? this.baiduUploadApi
+          : this.fileUploadApi
+      console.log("Action URL:", actionUrl) // 输出检查 URL
+      return actionUrl
+    },
     canUpload() {
       return (
         this.fileList.length > 0 &&
@@ -184,11 +198,12 @@ export default {
         return
       }
       const formData = new FormData()
-      formData.append('file', this.fileList[0])
+      formData.append('file', this.fileList[0].raw) // 确保 fileList[0].raw 是文件对象
       formData.append('name', this.uploadForm.fileName)
+
       try {
         const response = await uploadFile(formData, {
-          storageType: this.selectedStorageType,
+          action: this.action, // 使用动态生成的 URL
           onUploadProgress: this.handleUploadProgress
         })
         this.handleUploadSuccess(response)

@@ -17,7 +17,6 @@
 
       <!-- CRUD操作按钮 -->
       <crudOperation :permission="permission" />
-
       <!-- 表单组件 -->
       <el-dialog :close-on-click-modal="false" :before-close="crud.cancelCU" :visible.sync="crud.status.cu > 0" :title="crud.status.title" width="500px">
         <el-form ref="form" :model="form" :rules="rules" size="small" label-width="80px">
@@ -47,7 +46,6 @@
             <el-button @click="openUploadDialog">上传文件</el-button>
           </el-form-item>
         </el-form>
-
         <!-- 表单操作按钮 -->
         <div slot="footer" class="dialog-footer">
           <el-button type="text" @click="crud.cancelCU">取消</el-button>

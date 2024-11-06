@@ -18,7 +18,12 @@ service.interceptors.request.use(
     if (getToken()) {
       config.headers['Authorization'] = getToken() // 让每个请求携带自定义token 请根据实际情况自行修改
     }
-    config.headers['Content-Type'] = 'application/json'
+    // 动态设置 Content-Type，根据数据类型自动选择
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'] // 让 axios 自动设置为 multipart/form-data
+    } else {
+      config.headers['Content-Type'] = 'application/json'
+    }
     return config
   },
   error => {

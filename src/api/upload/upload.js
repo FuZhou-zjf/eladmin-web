@@ -6,7 +6,6 @@ export async function uploadFile(data, { action, onUploadProgress }) {
     url: action, // 动态 URL，根据不同的存储位置传入不同的路径
     method: 'post',
     data,
-    headers: { 'Content-Type': 'multipart/form-data' },
     onUploadProgress
   })
 }
@@ -25,6 +24,14 @@ export function editFile(data, action) {
     url: action, // 动态 URL
     method: 'put',
     data
+  })
+}
+
+// 通用获取已上传文件列表接口，根据 action 动态选择获取路径
+export function getUploadedFiles(action) {
+  return request({
+    url: `${action}/files`, // 动态获取 URL，根据不同的存储位置传入不同的路径
+    method: 'get'
   })
 }
 

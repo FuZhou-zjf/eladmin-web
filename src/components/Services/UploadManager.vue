@@ -17,7 +17,7 @@
         <el-form-item label="选择文件">
           <el-upload
             ref="fileUpload"
-            :action="action + '?name=' + encodeURIComponent(uploadForm.fileName)"
+            :action="action"
             :file-list="fileList"
             :auto-upload="false"
             :multiple="multiple"
@@ -84,7 +84,8 @@
 
 <script>
 import { mapGetters } from 'vuex'
-import { uploadFile, deleteFile } from '@/api/upload/upload'
+// eslint-disable-next-line no-unused-vars
+import { uploadFile, deleteFile, getUploadedFiles } from '@/api/upload/upload'
 
 export default {
   name: 'UploadManager',
@@ -99,23 +100,23 @@ export default {
       fileList: [],
       uploadProgress: 0,
       uploadedFiles: [],
-      selectedStorageType: '', // 选中的存储类型
-      multiple: false, // 是否支持多文件上传
-      fileNameModified: false // 标记文件名是否被用户手动修改
+      selectedStorageType: '',
+      multiple: false,
+      fileNameModified: false, // 新增标志，用于检测文件名是否被用户修改
+      loading: false
     }
   },
   computed: {
     ...mapGetters([
+      'baseApi',
       'fileUploadApi', // 本地存储
       'aliyunUploadApi', // 阿里云存储
       'baiduUploadApi' // 百度网盘存储
     ]),
     action() {
-      const actionUrl = this.selectedStorageType === 'aliyun' ? this.aliyunUploadApi
+      return this.selectedStorageType === 'aliyun' ? this.aliyunUploadApi
         : this.selectedStorageType === 'baidu' ? this.baiduUploadApi
           : this.fileUploadApi
-      console.log("Action URL:", actionUrl) // 输出检查 URL
-      return actionUrl
     },
     canUpload() {
       return (
@@ -137,29 +138,13 @@ export default {
       }
       this.fileList = []
       this.uploadProgress = 0
-      this.fileNameModified = false
+      this.fileNameModified = false // 重置标志
     },
+    // 用户输入文件名时触发，标记文件名已修改
     onFileNameInput() {
       this.fileNameModified = true
     },
-    beforeFileUpload(file) {
-      const isLt15M = file.size / 1024 / 1024 < 15
-      if (!isLt15M) {
-        this.$message.error('上传文件大小不能超过 15MB')
-        return false
-      }
-      const supportedTypes = [
-        'application/pdf', 'image/png', 'image/jpeg', 'image/bmp', 'image/gif',
-        'image/tiff', 'image/svg+xml', 'image/webp', 'application/zip',
-        'application/x-rar-compressed', 'application/x-7z-compressed',
-        'application/x-tar', 'application/gzip'
-      ]
-      if (!supportedTypes.includes(file.type)) {
-        this.$message.error('不支持的文件格式')
-        return false
-      }
-      return true
-    },
+    // 选择文件时自动填充默认文件名，但不会覆盖用户手动输入的文件名
     handleFileChange(file, fileList) {
       this.fileList = fileList
       if (!this.fileNameModified && fileList.length > 0) {
@@ -169,6 +154,7 @@ export default {
       this.uploadForm.fileSize = selectedFile.size
       this.uploadForm.fileType = selectedFile.type
     },
+    // 移除文件时重置相关数据
     handleFileRemove(file, fileList) {
       this.fileList = fileList
       if (fileList.length === 0) {
@@ -188,6 +174,7 @@ export default {
       const formattedSize = (size / Math.pow(1024, index)).toFixed(2)
       return `${formattedSize} ${units[index]}`
     },
+    // 上传文件时检查文件名状态，使用用户修改的文件名或默认文件名
     async submitUpload() {
       if (!this.uploadForm.fileName) {
         this.$message.warning('请先输入文件名')
@@ -197,52 +184,68 @@ export default {
         this.$message.error('请选择上传路径')
         return
       }
+
       const formData = new FormData()
-      formData.append('file', this.fileList[0].raw) // 确保 fileList[0].raw 是文件对象
-      formData.append('name', this.uploadForm.fileName)
+      formData.append('file', this.fileList[0].raw)
+
+      // 确定要上传的文件名
+      const fileNameToUpload = this.fileNameModified
+        ? this.uploadForm.fileName
+        : this.fileList[0].name.replace(/\.[^/.]+$/, '')
+      formData.append('name', fileNameToUpload)
+
+      this.loading = true
 
       try {
         const response = await uploadFile(formData, {
-          action: this.action, // 使用动态生成的 URL
+          action: this.action,
           onUploadProgress: this.handleUploadProgress
         })
-        this.handleUploadSuccess(response)
+        this.handleSuccess(response)
       } catch (error) {
-        this.handleUploadError(error)
+        this.handleError(error)
+      } finally {
+        this.loading = false
       }
     },
-    handleUploadSuccess(response) {
-      this.$message.success('文件上传成功')
-      const fileData = {
-        id: response.data.id,
-        name: response.data.fileName,
-        size: response.data.size,
-        type: response.data.type,
-        storageType: response.data.storageType
+    handleSuccess(response) {
+      if (response && response.status === 201) {
+        this.$message.success('上传成功')
+        this.resetUpload()
+        this.fetchUploadedFilesFromList()
+      } else if (response && response.status === 200 && response.data) {
+        this.$message.success('上传成功')
+        this.resetUpload()
+        this.uploadedFiles.push(response.data)
+      } else {
+        const errorMessage = response && response.message ? response.message : '上传失败，请稍后重试。'
+        this.$message.error(errorMessage)
       }
-      this.uploadedFiles.push(fileData)
-      this.uploadProgress = 0
-      this.resetUpload()
     },
-    handleUploadError(error) {
-      this.$message.error('文件上传失败')
-      console.error('Upload error:', error)
-      this.uploadProgress = 0
+    handleError(error) {
+      let msg = '上传失败，请稍后重试。'
+      if (error.response && error.response.data && error.response.data.message) {
+        msg = error.response.data.message
+      } else if (error.message) {
+        msg = error.message
+      }
+      this.$message.error(msg)
+      this.loading = false
     },
     closeDialog() {
       this.uploadDialogVisible = false
       this.resetUpload()
     },
-    async downloadFile(file) {
-      // 实现文件下载逻辑
-    },
-    async removeUploadedFile(file) {
+    async fetchUploadedFilesFromList() {
       try {
-        await deleteFile(file.id, file.storageType)
-        this.uploadedFiles = this.uploadedFiles.filter(f => f.id !== file.id)
-        this.$message.success('文件删除成功')
+        const response = await getUploadedFiles(this.action)
+        if (response && (response.status === 200 || response.status === 201)) {
+          this.uploadedFiles = response.data
+        } else {
+          this.$message.error('获取已上传文件失败')
+        }
       } catch (error) {
-        this.$message.error('文件删除失败')
+        this.$message.error('获取已上传文件时发生错误')
       }
     }
   }

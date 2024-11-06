@@ -27,14 +27,6 @@ export function editFile(data, action) {
   })
 }
 
-// 通用获取已上传文件列表接口，根据 action 动态选择获取路径
-export function getUploadedFiles(action) {
-  return request({
-    url: `${action}/files`, // 动态获取 URL，根据不同的存储位置传入不同的路径
-    method: 'get'
-  })
-}
-
 export default {
   uploadFile,
   deleteFile,

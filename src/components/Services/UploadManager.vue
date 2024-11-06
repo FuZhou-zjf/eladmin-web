@@ -21,7 +21,6 @@
             :file-list="fileList"
             :auto-upload="false"
             :multiple="multiple"
-            :before-upload="beforeFileUpload"
             :on-change="handleFileChange"
             :on-remove="handleFileRemove"
             :on-progress="handleUploadProgress"
@@ -56,7 +55,7 @@
         <el-form-item label="已上传文件">
           <el-table :data="uploadedFiles" size="small" style="width: 100%">
             <el-table-column prop="name" label="文件名" />
-            <el-table-column prop="size" label="大小" :formatter="formatFileSize" />
+            <el-table-column prop="size" label="大小" />
             <el-table-column prop="type" label="类型" />
             <el-table-column label="状态">
               <template #default="scope">
@@ -84,8 +83,7 @@
 
 <script>
 import { mapGetters } from 'vuex'
-// eslint-disable-next-line no-unused-vars
-import { uploadFile, deleteFile, getUploadedFiles } from '@/api/upload/upload'
+import { uploadFile } from '@/api/upload/upload'
 
 export default {
   name: 'UploadManager',
@@ -99,10 +97,10 @@ export default {
       },
       fileList: [],
       uploadProgress: 0,
-      uploadedFiles: [],
+      uploadedFiles: [], // 存储上传成功的文件信息
       selectedStorageType: '',
       multiple: false,
-      fileNameModified: false, // 新增标志，用于检测文件名是否被用户修改
+      fileNameModified: false,
       loading: false
     }
   },
@@ -138,23 +136,22 @@ export default {
       }
       this.fileList = []
       this.uploadProgress = 0
-      this.fileNameModified = false // 重置标志
+      this.fileNameModified = false
     },
-    // 用户输入文件名时触发，标记文件名已修改
     onFileNameInput() {
       this.fileNameModified = true
     },
-    // 选择文件时自动填充默认文件名，但不会覆盖用户手动输入的文件名
     handleFileChange(file, fileList) {
       this.fileList = fileList
-      if (!this.fileNameModified && fileList.length > 0) {
-        this.uploadForm.fileName = fileList[0].name.replace(/\.[^/.]+$/, '')
+
+      // 如果选择了文件，则获取第一个文件的信息
+      if (fileList.length > 0) {
+        const selectedFile = fileList[0]
+        this.uploadForm.fileName = selectedFile.name.replace(/\.[^/.]+$/, '') // 去掉扩展名
+        this.uploadForm.fileSize = selectedFile.size // 获取文件大小
+        this.uploadForm.fileType = selectedFile.raw.type || selectedFile.name.split('.').pop() // 获取 MIME 类型或文件后缀
       }
-      const selectedFile = fileList[0]
-      this.uploadForm.fileSize = selectedFile.size
-      this.uploadForm.fileType = selectedFile.type
     },
-    // 移除文件时重置相关数据
     handleFileRemove(file, fileList) {
       this.fileList = fileList
       if (fileList.length === 0) {
@@ -174,7 +171,6 @@ export default {
       const formattedSize = (size / Math.pow(1024, index)).toFixed(2)
       return `${formattedSize} ${units[index]}`
     },
-    // 上传文件时检查文件名状态，使用用户修改的文件名或默认文件名
     async submitUpload() {
       if (!this.uploadForm.fileName) {
         this.$message.warning('请先输入文件名')
@@ -188,7 +184,7 @@ export default {
       const formData = new FormData()
       formData.append('file', this.fileList[0].raw)
 
-      // 确定要上传的文件名
+      // 使用用户修改的文件名或默认文件名
       const fileNameToUpload = this.fileNameModified
         ? this.uploadForm.fileName
         : this.fileList[0].name.replace(/\.[^/.]+$/, '')
@@ -209,21 +205,33 @@ export default {
       }
     },
     handleSuccess(response) {
-      if (response && response.status === 201) {
-        this.$message.success('上传成功')
-        this.resetUpload()
-        this.fetchUploadedFilesFromList()
-      } else if (response && response.status === 200 && response.data) {
-        this.$message.success('上传成功')
-        this.resetUpload()
-        this.uploadedFiles.push(response.data)
+      console.log('Upload response:', response) // 打印完整的响应内容
+
+      // 从 response 解构出 status 和 message，文件信息在 response.data 中
+      const { status, message } = response
+      const fileData = response.data // 文件详细信息
+
+      console.log('Status:', status)
+      console.log('Message:', message)
+      console.log('File Data:', fileData)
+
+      // 根据状态码判断，更新上传信息或提示错误
+      if (status === 201) {
+        this.$message.success(message || '文件上传成功')
+        this.uploadedFiles.push(fileData) // 添加文件信息到文件列表
+        this.resetUpload() // 重置上传表单
+      } else if (status === 200) {
+        this.$message.info(message || '文件已存在或已成功上传')
+        this.uploadedFiles.push(fileData) // 添加文件信息到文件列表
+        this.resetUpload() // 重置上传表单
       } else {
-        const errorMessage = response && response.message ? response.message : '上传失败，请稍后重试。'
+        const errorMessage = message || '上传失败，请稍后重试。'
+        console.log('Error Message:', errorMessage) // 打印错误信息以便调试
         this.$message.error(errorMessage)
       }
     },
     handleError(error) {
-      let msg = '上传失败，请稍后重试。'
+      let msg = '上传失败，请稍后重试'
       if (error.response && error.response.data && error.response.data.message) {
         msg = error.response.data.message
       } else if (error.message) {
@@ -235,18 +243,6 @@ export default {
     closeDialog() {
       this.uploadDialogVisible = false
       this.resetUpload()
-    },
-    async fetchUploadedFilesFromList() {
-      try {
-        const response = await getUploadedFiles(this.action)
-        if (response && (response.status === 200 || response.status === 201)) {
-          this.uploadedFiles = response.data
-        } else {
-          this.$message.error('获取已上传文件失败')
-        }
-      } catch (error) {
-        this.$message.error('获取已上传文件时发生错误')
-      }
     }
   }
 }

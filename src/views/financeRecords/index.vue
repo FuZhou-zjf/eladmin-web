@@ -60,7 +60,7 @@
 
         <!-- 日期范围选择器 -->
         <label class="el-form-item-label">交易日期范围</label>
-        <date-range-picker v-model="crud.query.createTime" class="date-item" />
+        <date-range-picker v-model="crud.query.createTime" class="date-item" value-format="yyyy-MM-dd HH:mm:ss" />
         <rrOperation :crud="crud" />
       </div>
       <!--如果想在工具栏加入更多按钮，可以使用插槽方式， slot = 'left' or 'right'-->
@@ -173,7 +173,6 @@ import rrOperation from '@crud/RR.operation'
 import crudOperation from '@crud/CRUD.operation'
 import udOperation from '@crud/UD.operation'
 import pagination from '@crud/Pagination'
-import { format } from 'date-fns'
 import DateRangePicker from '@/components/DateRangePicker/index.vue'
 import checkPermission from '@/utils/permission'
 
@@ -238,31 +237,19 @@ export default {
 
   methods: {
     checkPermission,
-
-    formatDate(date) {
-      const year = date.getFullYear()
-      const month = (date.getMonth() + 1).toString().padStart(2, '0')
-      const day = date.getDate().toString().padStart(2, '0')
-      return `${year}-${month}-${day}`
-    },
     // 钩子：在获取表格数据之前执行，false 则代表不获取数据
     [CRUD.HOOK.beforeRefresh]() {
       console.log('当前查询参数:', this.crud.query) // 添加日志
-      // 判断是否存在日期范围
       if (this.crud.query.createTime && this.crud.query.createTime.length === 2) {
-        const [startDate, endDate] = this.crud.query.createTime
-
-        // 格式化日期为 'YYYY-MM-DD'
-        this.crud.query.startDate = format(startDate, 'yyyy-MM-dd')
-        this.crud.query.endDate = format(endDate, 'yyyy-MM-dd')
-        console.log('格式化后的开始日期:', this.crud.query.startDate)
-        console.log('格式化后的结束日期:', this.crud.query.endDate)
+        // 直接使用日期范围选择器的返回值
+        [this.crud.query.startDate, this.crud.query.endDate] = this.crud.query.createTime
       } else {
-        // 如果没有选择日期范围，确保查询参数为空
+        // 如果未选择日期范围，确保查询参数为空
         this.crud.query.startDate = ''
         this.crud.query.endDate = ''
       }
-      // 移除 createTime 以防止发送重复参数
+
+      // 删除 createTime，以避免重复传递
       delete this.crud.query.createTime
 
       console.log('最终查询参数:', this.crud.query) // 添加日志

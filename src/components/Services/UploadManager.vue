@@ -1,4 +1,3 @@
-<!-- UploadManager.vue -->
 <template>
   <div>
     <el-dialog title="上传文件" :visible.sync="uploadDialogVisible" width="500px" @close="resetUpload">
@@ -20,10 +19,9 @@
             :action="action"
             :file-list="fileList"
             :auto-upload="false"
-            :multiple="multiple"
+            :multiple="true"
             :on-change="handleFileChange"
             :on-remove="handleFileRemove"
-            :on-progress="handleUploadProgress"
             accept=".pdf,.png,.jpg,.jpeg,.zip,.rar,.7z,.tar,.gz,.bmp,.gif,.tiff,.svg,.webp"
           >
             <el-button size="small" type="primary">选择文件</el-button>
@@ -31,41 +29,25 @@
           </el-upload>
         </el-form-item>
 
-        <!-- 文件名输入 -->
-        <el-form-item label="文件名" prop="fileName">
-          <el-input
-            v-model="uploadForm.fileName"
-            placeholder="请输入文件名"
-            @input="onFileNameInput"
-          />
-        </el-form-item>
-
-        <!-- 文件信息显示 -->
+        <!-- 文件信息和进度显示 -->
         <el-form-item v-if="fileList.length > 0" label="文件信息">
-          <div>大小：{{ formatFileSize(uploadForm.fileSize) }}</div>
-          <div>类型：{{ uploadForm.fileType }}</div>
-        </el-form-item>
-
-        <!-- 上传进度条 -->
-        <el-form-item v-if="uploadProgress > 0 && uploadProgress < 100" label="上传进度">
-          <el-progress :percentage="uploadProgress" />
+          <div v-for="file in fileList" :key="file.name">
+            <div>文件名：{{ file.name }}</div>
+            <div>大小：{{ file.size || '未知大小' }}</div>
+            <div>类型：{{ file.raw.type || getFileExtension(file.name) || '未知类型' }}</div>
+            <div>上传进度：<el-progress :percentage="uploadProgress[file.name] || 0" /></div>
+          </div>
         </el-form-item>
 
         <!-- 已上传文件列表 -->
         <el-form-item label="已上传文件">
           <el-table :data="uploadedFiles" size="small" style="width: 100%">
-            <el-table-column prop="name" label="文件名" />
-            <el-table-column prop="size" label="大小" />
-            <el-table-column prop="type" label="类型" />
+            <el-table-column prop="fileName" label="文件名" />
+            <el-table-column prop="fileSize" label="大小" />
+            <el-table-column prop="fileType" label="类型" />
             <el-table-column label="状态">
               <template #default="scope">
                 <span>上传成功</span>
-              </template>
-            </el-table-column>
-            <el-table-column label="操作">
-              <template #default="scope">
-                <el-button type="text" @click="downloadFile(scope.row)">下载</el-button>
-                <el-button type="text" @click="removeUploadedFile(scope.row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -95,12 +77,11 @@ export default {
         fileSize: 0,
         fileType: ''
       },
-      fileList: [],
-      uploadProgress: 0,
-      uploadedFiles: [], // 存储上传成功的文件信息
+      fileList: [], // 存储选中的文件列表
+      uploadProgress: {}, // 存储每个文件的上传进度
+      uploadedFiles: [], // 存储成功上传的文件信息
       selectedStorageType: '',
-      multiple: false,
-      fileNameModified: false,
+      multiple: true, // 启用多文件选择
       loading: false
     }
   },
@@ -117,11 +98,7 @@ export default {
           : this.fileUploadApi
     },
     canUpload() {
-      return (
-        this.fileList.length > 0 &&
-        this.uploadForm.fileName &&
-        this.selectedStorageType
-      )
+      return this.fileList.length > 0 && this.selectedStorageType
     }
   },
   methods: {
@@ -135,99 +112,70 @@ export default {
         fileType: ''
       }
       this.fileList = []
-      this.uploadProgress = 0
-      this.fileNameModified = false
-    },
-    onFileNameInput() {
-      this.fileNameModified = true
+      this.uploadProgress = {}
+      this.uploadedFiles = [] // 清除已上传文件列表
     },
     handleFileChange(file, fileList) {
+      // 更新文件列表，避免重复选择相同文件
       this.fileList = fileList
-
-      // 如果选择了文件，则获取第一个文件的信息
-      if (fileList.length > 0) {
-        const selectedFile = fileList[0]
-        this.uploadForm.fileName = selectedFile.name.replace(/\.[^/.]+$/, '') // 去掉扩展名
-        this.uploadForm.fileSize = selectedFile.size // 获取文件大小
-        this.uploadForm.fileType = selectedFile.raw.type || selectedFile.name.split('.').pop() // 获取 MIME 类型或文件后缀
-      }
     },
     handleFileRemove(file, fileList) {
       this.fileList = fileList
       if (fileList.length === 0) {
-        this.uploadForm.fileName = ''
-        this.fileNameModified = false
-        this.uploadForm.fileSize = null
-        this.uploadForm.fileType = null
+        this.resetUpload()
       }
     },
-    handleUploadProgress(event) {
-      this.uploadProgress = Math.round((event.loaded / event.total) * 100)
+    handleUploadProgress(event, file) {
+      this.$set(this.uploadProgress, file.name, Math.round((event.loaded / event.total) * 100))
     },
-    formatFileSize(size) {
-      if (!size) return '0 B'
-      const units = ['B', 'KB', 'MB', 'GB', 'TB']
-      const index = Math.floor(Math.log(size) / Math.log(1024))
-      const formattedSize = (size / Math.pow(1024, index)).toFixed(2)
-      return `${formattedSize} ${units[index]}`
+    getFileExtension(name) {
+      const parts = name.split('.')
+      return parts.length > 1 ? parts.pop() : ''
     },
     async submitUpload() {
-      if (!this.uploadForm.fileName) {
-        this.$message.warning('请先输入文件名')
-        return
-      }
       if (!this.selectedStorageType) {
         this.$message.error('请选择上传路径')
         return
       }
 
-      const formData = new FormData()
-      formData.append('file', this.fileList[0].raw)
-
-      // 使用用户修改的文件名或默认文件名
-      const fileNameToUpload = this.fileNameModified
-        ? this.uploadForm.fileName
-        : this.fileList[0].name.replace(/\.[^/.]+$/, '')
-      formData.append('name', fileNameToUpload)
-
       this.loading = true
 
       try {
-        const response = await uploadFile(formData, {
-          action: this.action,
-          onUploadProgress: this.handleUploadProgress
-        })
-        this.handleSuccess(response)
+        for (const file of this.fileList) {
+          const formData = new FormData()
+          formData.append('file', file.raw)
+          formData.append('name', file.name)
+
+          const response = await uploadFile(formData, {
+            action: this.action,
+            onUploadProgress: (event) => this.handleUploadProgress(event, file)
+          })
+          this.handleSuccess(response, file)
+        }
       } catch (error) {
         this.handleError(error)
       } finally {
+        // 清除 fileList，避免重复上传
+        this.fileList = []
         this.loading = false
       }
     },
-    handleSuccess(response) {
-      console.log('Upload response:', response) // 打印完整的响应内容
+    handleSuccess(response, file) {
+      console.log('Upload response:', response)
 
-      // 从 response 解构出 status 和 message，文件信息在 response.data 中
       const { status, message } = response
-      const fileData = response.data // 文件详细信息
+      const fileData = response.data
 
-      console.log('Status:', status)
-      console.log('Message:', message)
-      console.log('File Data:', fileData)
-
-      // 根据状态码判断，更新上传信息或提示错误
-      if (status === 201) {
+      if (status === 201 || status === 200) {
         this.$message.success(message || '文件上传成功')
-        this.uploadedFiles.push(fileData) // 添加文件信息到文件列表
-        this.resetUpload() // 重置上传表单
-      } else if (status === 200) {
-        this.$message.info(message || '文件已存在或已成功上传')
-        this.uploadedFiles.push(fileData) // 添加文件信息到文件列表
-        this.resetUpload() // 重置上传表单
+        this.uploadedFiles.push({
+          fileName: fileData.realName,
+          fileSize: fileData.size,
+          fileType: fileData.type || this.getFileExtension(fileData.realName)
+        })
+        this.uploadProgress[file.name] = 100
       } else {
-        const errorMessage = message || '上传失败，请稍后重试。'
-        console.log('Error Message:', errorMessage) // 打印错误信息以便调试
-        this.$message.error(errorMessage)
+        this.$message.error(message || '上传失败，请稍后重试')
       }
     },
     handleError(error) {

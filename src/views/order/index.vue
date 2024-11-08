@@ -166,6 +166,15 @@
             style="width: 370px;"
           />
         </el-form-item>
+        <el-form-item prop="uploadedFile" style="display: flex; align-items: center; justify-content: flex-start;">
+          <!-- 放大图标 -->
+          <svg-icon icon-class="upload" class="upload-icon" />
+          <!-- 上传按钮 -->
+          <el-button type="primary" style="margin-left: 8px;" @click="openUploadDialog">
+            上传文件
+          </el-button>
+        </el-form-item>
+
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button type="text" @click="closeDialog">取消</el-button>
@@ -229,6 +238,8 @@
 
     <!-- 分页组件 -->
     <pagination />
+    <!-- 上传组件 -->
+    <UploadManager ref="uploadManager" :upload-options="uploadOptions" />
   </div>
 </template>
 
@@ -242,7 +253,7 @@ import pagination from '@crud/Pagination'
 import crudOrder from '@/api/order/order'
 import Inputmask from 'inputmask'
 import _ from 'lodash'
-
+import UploadManager from '@/components/Services/UploadManager.vue'
 import DateRangePicker from '@/components/DateRangePicker/index.vue'
 
 const defaultForm = {
@@ -274,7 +285,7 @@ const defaultForm = {
 
 export default {
   name: 'Order',
-  components: { DateRangePicker, pagination, crudOperation, rrOperation, udOperation },
+  components: { DateRangePicker, pagination, crudOperation, rrOperation, UploadManager, udOperation },
   directives: {
     inputmask: {
       inserted(el, binding, vnode) {
@@ -414,25 +425,11 @@ export default {
       // 初始推荐人信息
       initialReferrerName: '',
       initialReferrerInfo: '',
-      // 移除 debouncedSearchSeller 和 debouncedSearchRecommender
-      // debouncedSearchSeller: null,
-      // debouncedSearchRecommender: null,
       canViewOrderAmount: false,
       createTime: []
     }
   },
-  watch: {
-    // 移除 watch 监听器
-  },
-  beforeDestroy() {
-    // 不再需要取消 debouncedSearchSeller 和 debouncedSearchRecommender
-    // if (this.debouncedSearchSeller) {
-    //   this.debouncedSearchSeller.cancel()
-    // }
-    // if (this.debouncedSearchRecommender) {
-    //   this.debouncedSearchRecommender.cancel()
-    // }
-  },
+
   async mounted() {
     try {
       await this.getUserInfo()
@@ -472,6 +469,9 @@ export default {
       } catch (error) {
         console.error('获取用户信息失败', error)
       }
+    },
+    openUploadDialog() {
+      this.$refs.uploadManager.openUploadDialog()
     },
 
     // 处理新增操作
@@ -709,35 +709,11 @@ export default {
 </script>
 
 <style scoped>
-.crud-opts {
-  padding: 4px 0;
-  display: flex;
-  align-items: center;
-}
-
-.crud-opts .crud-opts-right {
-  margin-left: auto;
-}
-
-.crud-opts .crud-opts-right span {
-  float: left;
-}
-
-.head-container {
-  padding: 20px;
-}
-
-.filter-item {
-  margin-right: 10px;
-  margin-bottom: 10px;
-}
-
-.date-item {
-  margin-right: 10px;
-  margin-bottom: 10px;
-}
-
-.dialog-footer {
-  text-align: right;
+.upload-icon {
+  width: 32px;
+  height: 32px;
+  position: relative;
+  top: 8px;
+  margin-left: -45px; /* 调整这个值来向左移动图标 */
 }
 </style>

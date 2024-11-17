@@ -69,12 +69,12 @@
     >
       <el-form ref="form" :model="crud.form" :rules="rules" size="small" label-width="120px">
         <!-- 表单项 -->
-        <el-form-item label="账号名" prop="orderAccountUsername">
-          <el-input v-model="crud.form.orderAccountUsername" style="width: 370px;" />
-        </el-form-item>
-        <el-form-item label="密码" prop="orderAccountPassword">
-          <el-input v-model="crud.form.orderAccountPassword" style="width: 370px;" />
-        </el-form-item>
+        <!--        <el-form-item label="账号名" prop="orderAccountUsername">-->
+        <!--          <el-input v-model="crud.form.orderAccountUsername" style="width: 370px;" />-->
+        <!--        </el-form-item>-->
+        <!--        <el-form-item label="密码" prop="orderAccountPassword">-->
+        <!--          <el-input v-model="crud.form.orderAccountPassword" style="width: 370px;" />-->
+        <!--        </el-form-item>-->
         <el-form-item label="App名称" prop="orderAppName">
           <el-select v-model="crud.form.orderAppName" filterable placeholder="请选择">
             <el-option
@@ -200,18 +200,28 @@
     >
       <el-table-column type="selection" width="55" />
       <el-table-column prop="orderNumber" label="订单编号" />
-      <el-table-column prop="orderAccountUsername" label="账号名" />
+      <!--      <el-table-column prop="orderAccountUsername" label="账号名" />-->
       <el-table-column prop="orderAppName" label="App名称">
         <template slot-scope="scope">
           {{ dict.label.bus_appName[scope.row.orderAppName] }}
         </template>
       </el-table-column>
-      <el-table-column prop="orderSellerName" label="卖家名称" />
-      <el-table-column prop="orderSellerSsn" label="卖家SSN" />
+      <!--      <el-table-column prop="orderSellerName" label="卖家名称" />-->
+      <el-table-column prop="orderSellerNickname" label="卖家昵称">
+        <template slot-scope="scope">
+          <span>{{ scope.row.orderSellerNickname || 'N/A' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="orderContactInfo" label="卖家联系方式" />
+      <el-table-column prop="orderSellerSsn" label="卖家SSN" />
       <el-table-column prop="orderPaymentMethod" label="支付方式" />
       <el-table-column prop="orderContactOther" label="紧急联系方式" />
-      <el-table-column prop="orderReferrerName" label="推荐人名称" />
+      <!--      <el-table-column prop="orderReferrerName" label="推荐人名称" />-->
+      <el-table-column prop="orderReferrerNickname" label="推荐人昵称">
+        <template slot-scope="scope">
+          <span>{{ scope.row.orderReferrerNickname || 'N/A' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="orderReferrerInfo" label="推荐人联系方式" />
       <el-table-column prop="orderReferrerMethod" label="推荐人支付方式" />
       <el-table-column v-if="canViewOrderAmount" prop="orderReferralFee" label="推荐费" />
@@ -260,18 +270,20 @@ const defaultForm = {
   orderId: null,
   orderNumber: null,
   orderStatus: 0,
-  orderAccountUsername: '',
-  orderAccountPassword: '',
+  orderAccountUsername: 'N/A',
+  orderAccountPassword: 'N/A',
   orderAppId: null,
   orderAppName: '',
   orderSellerId: null,
   orderSellerName: '',
+  orderSellerNickname: '',
   orderSellerSsn: '',
   orderContactInfo: '',
   orderPaymentMethod: '',
   orderContactOther: '',
   orderReferrerId: null,
   orderReferrerName: '',
+  orderReferrerNickname: '',
   orderReferrerInfo: '',
   orderReferrerMethod: '',
   orderReferralFee: 0,
@@ -443,6 +455,7 @@ export default {
     } catch (error) {
       console.error('获取用户信息失败', error)
     }
+    console.log(this.crud.data)
   },
   methods: {
     // 获取用户信息和权限

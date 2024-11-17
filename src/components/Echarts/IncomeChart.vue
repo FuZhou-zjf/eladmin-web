@@ -1,15 +1,14 @@
 <template>
-  <div :class="className" :style="{height:height,width:width}" />
+  <div :class="className" :style="{height: height, width: width}" />
 </template>
 
 <script>
 import echarts from 'echarts'
-require('echarts/theme/macarons') // echarts theme
+require('echarts/theme/macarons') // 使用 macarons 主题
 import { debounce } from '@/utils'
 
-const animationDuration = 2000
-
 export default {
+  name: 'IncomeChart',
   props: {
     className: {
       type: String,
@@ -21,7 +20,7 @@ export default {
     },
     height: {
       type: String,
-      default: '300px'
+      default: '400px'
     },
     chartData: {
       type: Object,
@@ -31,6 +30,16 @@ export default {
   data() {
     return {
       chart: null
+    }
+  },
+  watch: {
+    chartData: {
+      handler() {
+        if (this.chart) {
+          this.updateChart()
+        }
+      },
+      deep: true
     }
   },
   mounted() {
@@ -52,54 +61,48 @@ export default {
   methods: {
     initChart() {
       this.chart = echarts.init(this.$el, 'macarons')
-
+      this.updateChart()
+    },
+    updateChart() {
+      const { categories, series } = this.chartData
       this.chart.setOption({
         tooltip: {
           trigger: 'axis',
-          axisPointer: {
-            type: 'shadow'
-          }
+          axisPointer: { type: 'shadow' }
+        },
+        legend: {
+          data: series.map(item => item.name)
         },
         grid: {
-          top: 10,
-          left: '2%',
-          right: '2%',
+          top: 20,
+          left: '3%',
+          right: '4%',
           bottom: '3%',
           containLabel: true
         },
-        xAxis: [{
+        xAxis: {
           type: 'category',
-          data: this.chartData.categories || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-          axisTick: {
-            alignWithLabel: true
-          }
-        }],
-        yAxis: [{
-          type: 'value',
-          axisTick: {
-            show: false
-          }
-        }],
-        series: [
-          {
-            name: '支出',
-            type: 'bar',
-            stack: '总计',
-            barWidth: '60%',
-            data: this.chartData.paymentData || [],
-            animationDuration
-          },
-          {
-            name: '收入',
-            type: 'bar',
-            stack: '总计',
-            barWidth: '60%',
-            data: this.chartData.incomeData || [],
-            animationDuration
-          }
-        ]
+          data: categories,
+          axisTick: { alignWithLabel: true }
+        },
+        yAxis: {
+          type: 'value'
+        },
+        series: series.map(item => ({
+          ...item,
+          barWidth: '10%', // 调整柱子宽度
+          barGap: '10%', // 调整柱子之间的间距
+          barCategoryGap: '20%' // 调整类目之间的间距
+        }))
       })
     }
   }
 }
 </script>
+
+<style scoped>
+.chart {
+  padding: 16px;
+  background-color: #fff;
+}
+</style>

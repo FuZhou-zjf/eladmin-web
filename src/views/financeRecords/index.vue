@@ -128,13 +128,19 @@
       <!--表格渲染-->
       <el-table ref="table" v-loading="crud.loading" :data="crud.data" size="small" style="width: 100%;" @selection-change="crud.selectionChangeHandler">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="记录ID" />
-        <el-table-column prop="orderId" label="订单ID" />
-        <el-table-column prop="date" label="交易日期" />
+        <el-table-column prop="id" label="财务记录编号" />
+        <!--        <el-table-column prop="orderId" label="订单ID" />-->
+        <el-table-column prop="orderNumber" label="订单编号" />
         <el-table-column prop="accountId" label="账户ID" />
         <el-table-column prop="accountType" label="账户类型: 员工/卖家/推荐人">
           <template slot-scope="scope">
             {{ dict.label.bus_id_type[scope.row.accountType] }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="accountName" label="账号名称" />
+        <el-table-column prop="category" label="交易类别: 销售/佣金/推荐费">
+          <template slot-scope="scope">
+            {{ dict.label.bus_category_type[scope.row.category] }}
           </template>
         </el-table-column>
         <el-table-column prop="type" label="交易类型: 收入/支出">
@@ -142,13 +148,9 @@
             {{ dict.label.bus_money_status[scope.row.type] }}
           </template>
         </el-table-column>
-        <el-table-column prop="category" label="交易类别: 销售/佣金/推荐费">
-          <template slot-scope="scope">
-            {{ dict.label.bus_category_type[scope.row.category] }}
-          </template>
-        </el-table-column>
         <el-table-column prop="amount" label="金额" />
         <el-table-column prop="description" label="备注" />
+        <el-table-column prop="date" label="交易日期" />
         <el-table-column prop="createdAt" label="创建时间" />
         <el-table-column prop="updatedAt" label="更新时间" />
         <el-table-column v-if="checkPer(['admin','financeRecords:edit','financeRecords:del'])" label="操作" width="150px" align="center">

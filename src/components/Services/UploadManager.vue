@@ -31,26 +31,30 @@
 
         <!-- 文件信息和进度显示 -->
         <el-form-item v-if="fileList.length > 0" label="文件信息">
-          <div v-for="file in fileList" :key="file.name">
-            <div>文件名：{{ file.name }}</div>
-            <div>大小：{{ file.size || '未知大小' }}</div>
-            <div>类型：{{ file.raw.type || getFileExtension(file.name) || '未知类型' }}</div>
-            <div>上传进度：<el-progress :percentage="uploadProgress[file.name] || 0" /></div>
+          <div class="uploaded-files-container">
+            <div v-for="file in fileList" :key="file.name">
+              <div>文件名：{{ file.name }}</div>
+              <div>大小：{{ file.size || '未知大小' }}</div>
+              <div>类型：{{ file.raw.type || getFileExtension(file.name) || '未知类型' }}</div>
+              <div>上传进度：<el-progress :percentage="uploadProgress[file.name] || 0" /></div>
+            </div>
           </div>
         </el-form-item>
 
-        <!-- 已上传文件列表 -->
+        <!-- 已上传文件列表，增加滚动条 -->
         <el-form-item label="已上传文件">
-          <el-table :data="uploadedFiles" size="small" style="width: 100%">
-            <el-table-column prop="fileName" label="文件名" />
-            <el-table-column prop="fileSize" label="大小" />
-            <el-table-column prop="fileType" label="类型" />
-            <el-table-column label="状态">
-              <template #default="scope">
-                <span>上传成功</span>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div class="uploaded-files-container">
+            <el-table :data="uploadedFiles" size="small" style="width: 100%">
+              <el-table-column prop="fileName" label="文件名" />
+              <el-table-column prop="fileSize" label="大小" />
+              <el-table-column prop="fileType" label="类型" />
+              <el-table-column label="状态">
+                <template #default="scope">
+                  <span>上传成功</span>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
         </el-form-item>
       </el-form>
 
@@ -199,5 +203,9 @@ export default {
 <style scoped>
 .dialog-footer {
   text-align: right;
+}
+.uploaded-files-container {
+  max-height: 200px; /* 限制最大高度 */
+  overflow-y: auto; /* 超出高度时出现垂直滚动条 */
 }
 </style>

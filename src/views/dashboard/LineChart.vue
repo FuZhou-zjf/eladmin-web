@@ -40,8 +40,11 @@ export default {
     chartData: {
       deep: true,
       handler(val) {
-        this.setOptions(val)
+        if (val && val.categories && val.incomeData && val.paymentData) {
+          this.setOptions(val)
+        }
       }
+
     }
   },
   mounted() {
@@ -50,25 +53,22 @@ export default {
     })
   },
   beforeDestroy() {
-    if (!this.chart) {
-      return
+    if (this.chart) {
+      this.chart.dispose()
+      this.chart = null
     }
-    this.chart.dispose()
-    this.chart = null
   },
   methods: {
     initChart() {
       this.chart = echarts.init(this.$el, 'macarons')
       this.setOptions(this.chartData)
     },
-    setOptions({ expectedData, actualData } = {}) {
+    setOptions({ categories, incomeData, paymentData } = {}) {
       this.chart.setOption({
         xAxis: {
-          data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          data: categories || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
           boundaryGap: false,
-          axisTick: {
-            show: false
-          }
+          axisTick: { show: false }
         },
         grid: {
           left: 10,
@@ -90,30 +90,30 @@ export default {
           }
         },
         legend: {
-          data: ['expected', 'actual']
+          data: ['收入', '支出']
         },
-        series: [{
-          name: 'expected', itemStyle: {
-            normal: {
+        series: [
+          {
+            name: '支出',
+            type: 'line',
+            smooth: true,
+            data: paymentData,
+            itemStyle: {
               color: '#FF005A',
               lineStyle: {
                 color: '#FF005A',
                 width: 2
               }
-            }
+            },
+            animationDuration: 2800,
+            animationEasing: 'cubicInOut'
           },
-          smooth: true,
-          type: 'line',
-          data: expectedData,
-          animationDuration: 2800,
-          animationEasing: 'cubicInOut'
-        },
-        {
-          name: 'actual',
-          smooth: true,
-          type: 'line',
-          itemStyle: {
-            normal: {
+          {
+            name: '收入',
+            type: 'line',
+            smooth: true,
+            data: incomeData,
+            itemStyle: {
               color: '#3888fa',
               lineStyle: {
                 color: '#3888fa',
@@ -122,12 +122,11 @@ export default {
               areaStyle: {
                 color: '#f3f8ff'
               }
-            }
-          },
-          data: actualData,
-          animationDuration: 2800,
-          animationEasing: 'quadraticOut'
-        }]
+            },
+            animationDuration: 2800,
+            animationEasing: 'quadraticOut'
+          }
+        ]
       })
     }
   }

@@ -23,21 +23,22 @@ export function edit(data) {
     data
   })
 }
-// 检查卖家是否存在
-export function checkSellerExists(params) {
+
+// 检查卖家信息
+export function checkSeller(params) {
   return request({
-    url: 'api/sellerInfo/checkSellerExists',
+    url: 'api/sellerInfo/checkSeller',
     method: 'get',
     params
   })
 }
 
-// 检查推荐人是否存在
-export function checkRecommenderExists(params) {
+// 检查推荐人信息
+export function checkReferrer(params) {
   return request({
-    url: 'api/sellerInfo/checkRecommenderExists',
+    url: 'api/sellerInfo/checkReferrer',
     method: 'get',
     params
   })
 }
-export default { add, edit, del, checkRecommenderExists, checkSellerExists }
+export default { add, edit, del, checkSeller, checkReferrer }

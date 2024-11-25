@@ -261,6 +261,7 @@ import crudOperation from '@crud/CRUD.operation'
 import udOperation from '@crud/UD.operation'
 import pagination from '@crud/Pagination'
 import crudOrder from '@/api/order/order'
+import { checkSeller, checkReferrer } from '@/api/order/order'
 import Inputmask from 'inputmask'
 import _ from 'lodash'
 import UploadManager from '@/components/Services/UploadManager.vue'
@@ -528,7 +529,7 @@ export default {
       console.log('resetForm 完成后 form 数据:', JSON.stringify(this.crud.form, null, 2))
     },
 
-    // 处理 SSN 输入事件
+    // 处 SSN 输入事件
     handleSsnInput() {
       this.$refs.form.validateField('orderSellerSsn')
     },
@@ -545,176 +546,172 @@ export default {
 
     // 卖家查重方法
     searchSeller: _.debounce(function() {
+      console.log('========== 开始查询卖家信息 ==========')
       const sellerName = this.crud.form.orderSellerName.trim()
       const sellerSsn = this.crud.form.orderSellerSsn.trim()
+      console.log('查询参数：', { sellerName, sellerSsn })
+
       if (sellerName === '' || sellerSsn === '') {
-        this.sellerExists = null
+        console.log('卖家名称或SSN为空，终止查询')
         this.canSubmit = false
         return
       }
-      request
-        .get('/api/sellerInfo/checkSellerExists', {
-          params: {
-            name: sellerName,
-            ssn: sellerSsn
-          }
-        })
-        .then(response => {
-          console.log('API 响应：', response)
-          const { nameExists, ssnExists, sellerExists } = response
 
-          if (sellerExists) {
-            this.$message.success('卖家已存在，可以继续提交订单。')
+      console.log('发送查询请求...')
+      checkSeller({
+        name: sellerName,
+        ssn: sellerSsn
+      })
+        .then(response => {
+          console.log('========== 收到卖家查询响应 ==========')
+          console.log('完整响应数据：', response)
+          console.log('更新前的表单状态：', {
+            contactInfo: this.crud.form.orderContactInfo,
+            paymentMethod: this.crud.form.orderPaymentMethod
+          })
+
+          // 直接从 response 获取数据
+          const { contactInfo, paymentMethod, exists } = response
+          console.log('解析的响应数据：', { exists, contactInfo, paymentMethod })
+
+          if (exists) {
+            this.$message.success('卖家已存在，已自动填充相关信息')
+
+            // 直接更新表单数据
+            this.crud.form.orderContactInfo = contactInfo || ''
+            this.crud.form.orderPaymentMethod = paymentMethod || ''
+
+            console.log('更新后的表单状态：', {
+              contactInfo: this.crud.form.orderContactInfo,
+              paymentMethod: this.crud.form.orderPaymentMethod
+            })
+
             this.canSubmit = true
-          } else if (nameExists && !ssnExists) {
-            this.$message.error('卖家名称已存在，但 SSN 不匹配，请检查 SSN 是否正确。')
-            this.canSubmit = false
-          } else if (!nameExists && ssnExists) {
-            this.$message.error('SSN 已存在，但卖家名称不匹配，请检查名称是否正确。')
-            this.canSubmit = false
           } else {
-            this.$message.warning('卖家不存在，您可以继续提交表单。')
+            console.log('卖家不存在')
+            this.$message.warning('卖家不存在，您可以继续提交表单')
             this.canSubmit = true
           }
         })
         .catch(error => {
-          console.error(error)
+          console.error('========== 查询失败 ==========')
+          console.error('错误详情:', error)
           this.$message.error('查询卖家信息失败')
           this.canSubmit = false
+        })
+        .finally(() => {
+          console.log('========== 查询结束 ==========')
+          // 强制更新视图
+          this.$forceUpdate()
         })
     }, 500),
 
     // 推荐人查重方法
     searchRecommender: _.debounce(function() {
-      console.log('API 响应推荐人：')
+      console.log('========== 开始查询推荐人信息 ==========')
       const recommenderName = this.crud.form.orderReferrerName.trim()
-      console.log('API 响应推荐人名称：', recommenderName)
       const recommenderInfo = this.crud.form.orderReferrerInfo.trim()
+      console.log('查询参数：', { recommenderName, recommenderInfo })
+
       if (recommenderName === '' || recommenderInfo === '') {
+        console.log('推荐人名称或联系方式为空，终止查询')
         this.canSubmitRecommender = false
         return
       }
-      request
-        .get('/api/sellerInfo/checkRecommenderExists', {
-          params: {
-            name: recommenderName,
-            contactInfo: recommenderInfo
-          }
-        })
-        .then(response => {
-          console.log('API 响应推荐人信息：', response)
-          const { recommenderExists, nameExists: refNameExists, contactExists } = response
 
-          if (recommenderExists) {
-            this.$message.success('推荐人已存在，可以继续提交订单。')
+      console.log('发送查询请求...')
+      checkReferrer({
+        name: recommenderName,
+        contactInfo: recommenderInfo
+      })
+        .then(response => {
+          console.log('========== 收到推荐人查询响应 ==========')
+          console.log('完整响应数据：', response)
+          console.log('更新前的表单状态：', {
+            contactInfo: this.crud.form.orderReferrerInfo,
+            paymentMethod: this.crud.form.orderReferrerMethod
+          })
+
+          // 直接从 response 获取数据
+          const { contactInfo, paymentMethod, exists } = response
+          console.log('解析的响应数据：', { exists, contactInfo, paymentMethod })
+
+          if (exists) {
+            this.$message.success('推荐人已存在，已自动填充相关信息')
+
+            // 直接更新表单数据
+            this.crud.form.orderReferrerInfo = contactInfo || ''
+            this.crud.form.orderReferrerMethod = paymentMethod || ''
+
+            console.log('更新后的表单状态：', {
+              contactInfo: this.crud.form.orderReferrerInfo,
+              paymentMethod: this.crud.form.orderReferrerMethod
+            })
+
             this.canSubmitRecommender = true
-          } else if (refNameExists && !contactExists) {
-            this.$message.error('推荐人姓名已存在，但联系方式不匹配，请检查联系方式是否正确。')
-            this.canSubmitRecommender = false
-          } else if (!refNameExists && contactExists) {
-            this.$message.error('联系方式已存在，但推荐人姓名不匹配，请检查姓名是否正确。')
-            this.canSubmitRecommender = false
           } else {
-            this.$message.warning('推荐人不存在，系统将自动创建新推荐人。')
+            console.log('推荐人不存在')
+            this.$message.warning('推荐人不存在，系统将自动创建新推荐人')
             this.canSubmitRecommender = true
           }
         })
         .catch(error => {
-          console.error(error)
+          console.error('========== 查询失败 ==========')
+          console.error('错误详情:', error)
           this.$message.error('查询推荐人信息失败')
           this.canSubmitRecommender = false
+        })
+        .finally(() => {
+          console.log('========== 查询结束 ==========')
+          // 强制更新视图
+          this.$forceUpdate()
         })
     }, 500),
 
     // 钩子：在提交表单前执行
     async [CRUD.HOOK.beforeSubmit]() {
-      // 判断是新增还是修改
-      const isEdit = !!this.crud.form.orderId
-
-      if (!isEdit) {
-        // 新增操作，生成订单编号
-        this.crud.form.orderNumber = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
-      }
-
-      // 处理数据，如移除掩码字符
-      this.crud.form.orderSellerSsn = this.crud.form.orderSellerSsn.replace(/-/g, '')
-      this.crud.form.orderContactInfo = this.crud.form.orderContactInfo.replace(/\(\+1\)\s?/g, '').replace(/\D+/g, '')
-      if (this.crud.form.orderReferrerInfo) {
-        this.crud.form.orderReferrerInfo = this.crud.form.orderReferrerInfo.replace(/\D+/g, '')
-      }
-
-      // 赋值员工 ID
-      this.crud.form.orderEmployeeId = this.userInfo.id
-
-      // 根据权限决定字段是否可编辑
-      if (!this.canEditStatus) {
-        delete this.crud.form.orderReferralFee
-        delete this.crud.form.orderAmount
-        delete this.crud.form.orderCommission
-      }
-
-      // 调用 API 验证卖家是否存在
       try {
-        const sellerResponse = await request.get('/api/sellerInfo/checkSellerExists', {
-          params: {
-            name: this.crud.form.orderSellerName.trim(),
-            ssn: this.crud.form.orderSellerSsn.trim()
-          }
+        // 处理其他字段
+        this.crud.form.orderSellerSsn = this.crud.form.orderSellerSsn.replace(/-/g, '')
+        this.crud.form.orderContactInfo = this.crud.form.orderContactInfo.replace(/\(\+1\)\s?/g, '').replace(/\D+/g, '')
+        if (this.crud.form.orderReferrerInfo) {
+          this.crud.form.orderReferrerInfo = this.crud.form.orderReferrerInfo.replace(/\D+/g, '')
+        }
+
+        this.crud.form.orderEmployeeId = this.userInfo.id
+
+        if (!this.canEditStatus) {
+          delete this.crud.form.orderReferralFee
+          delete this.crud.form.orderAmount
+          delete this.crud.form.orderCommission
+        }
+
+        // 验证卖家和推荐人信息
+        const sellerResponse = await checkSeller({
+          name: this.crud.form.orderSellerName.trim(),
+          ssn: this.crud.form.orderSellerSsn.trim()
         })
 
-        const { sellerExists, nameExists, ssnExists } = sellerResponse
-
-        if (!sellerExists) {
-          if (nameExists && !ssnExists) {
-            this.$message.error('卖家名称已存在，但 SSN 不匹配，请检查 SSN 是否正确。')
-            return false // 阻止提交
-          } else if (!nameExists && ssnExists) {
-            this.$message.error('SSN 已存在，但卖家名称不匹配，请检查名称是否正确。')
-            return false // 阻止提交
-          } else {
-            this.$message.warning('卖家不存在，您可以继续提交表单。')
-            // 根据需求决定是否阻止提交，这里假设允许继续
-          }
+        if (sellerResponse && sellerResponse.data && !sellerResponse.data.exists) {
+          this.$message.warning('卖家不存在，系统将自动创建新卖家')
         }
 
-        // 检查推荐人信息是否发生变化
-        const referrerNameChanged = this.crud.form.orderReferrerName.trim() !== this.initialReferrerName.trim()
-        const referrerInfoChanged = this.crud.form.orderReferrerInfo.trim() !== this.initialReferrerInfo.trim()
-
-        if (referrerNameChanged || referrerInfoChanged) {
-          // 调用 API 验证推荐人是否存在
-          const recommenderResponse = await request.get('/api/sellerInfo/checkRecommenderExists', {
-            params: {
-              name: this.crud.form.orderReferrerName.trim(),
-              contactInfo: this.crud.form.orderReferrerInfo.trim()
-            }
+        if (this.crud.form.orderReferrerName && this.crud.form.orderReferrerInfo) {
+          const referrerResponse = await checkReferrer({
+            name: this.crud.form.orderReferrerName.trim(),
+            contactInfo: this.crud.form.orderReferrerInfo.trim()
           })
 
-          const { recommenderExists, nameExists: refNameExists, contactExists } = recommenderResponse
-
-          if (!recommenderExists) {
-            if (refNameExists && !contactExists) {
-              this.$message.error('推荐人姓名已存在，但联系方式不匹配，请检查联系方式是否正确。')
-              return false // 阻止提交
-            } else if (!refNameExists && contactExists) {
-              this.$message.error('联系方式已存在，但推荐人姓名不匹配，请检查姓名是否正确。')
-              return false // 阻止提交
-            } else {
-              this.$message.warning('推荐人不存在，系统将自动创建新推荐人。')
-              // 根据需求决定是否阻止提交，这里假设允许继续
-            }
+          if (referrerResponse && referrerResponse.data && !referrerResponse.data.exists) {
+            this.$message.warning('推荐人不存在，系统将自动创建新推荐人')
           }
-        } else {
-          // 推荐人信息未变更，跳过验证
-          console.log('推荐人信息未变更，跳过存在性验证。')
         }
 
-        // 所有验证通过，允许提交
         return true
       } catch (error) {
         console.error('验证失败:', error)
-        this.$message.error('验证卖家或推荐人信息时出错，请稍后重试。')
-        return false // 阻止提交
+        this.$message.error('验证卖家或推荐人信息时出错，请稍后重试')
+        return false
       }
     }
   }

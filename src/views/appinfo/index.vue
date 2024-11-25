@@ -87,17 +87,17 @@
           <el-form-item label="SSN或EIN">
             <el-input v-model="form.ssn" style="width: 370px;" />
           </el-form-item>
-          <el-form-item label="联系电话">
+          <el-form-item label="电话号码">
             <el-input v-model="form.phoneNumber" style="width: 370px;" />
+          </el-form-item>
+          <el-form-item label="API URL">
+            <el-input v-model="form.apiUrl" style="width: 370px;" />
           </el-form-item>
           <el-form-item label="电子邮件">
             <el-input v-model="form.email" style="width: 370px;" />
           </el-form-item>
-          <el-form-item label="安全问题">
-            <el-input v-model="form.securityQuestion" style="width: 370px;" />
-          </el-form-item>
-          <el-form-item label="答案">
-            <el-input v-model="form.securityAnswer" style="width: 370px;" />
+          <el-form-item label="买家名称">
+            <el-input v-model="form.buyerName" style="width: 370px;" />
           </el-form-item>
           <el-form-item label="备注">
             <el-input v-model="form.remark" :rows="3" type="textarea" style="width: 370px;" />
@@ -131,10 +131,21 @@
         <el-table-column prop="updatedAt" label="更新时间" />
         <el-table-column prop="fullName" label="卖家全名" />
         <el-table-column prop="ssn" label="SSN或EIN" />
-        <el-table-column prop="phoneNumber" label="联系电话" />
+        <el-table-column prop="phoneNumber" label="电话号码" />
+        <el-table-column prop="apiUrl" label="API URL">
+          <template #default="scope">
+            <el-link
+              type="primary"
+              :href="scope.row.apiUrl"
+              target="_blank"
+              :underline="false"
+            >
+              {{ scope.row.apiUrl }}
+            </el-link>
+          </template>
+        </el-table-column>
         <el-table-column prop="email" label="电子邮件" />
-        <el-table-column prop="securityQuestion" label="安全问题" />
-        <el-table-column prop="securityAnswer" label="答案" />
+        <el-table-column prop="buyerName" label="买家名称" />
         <el-table-column prop="remark" label="备注" />
         <el-table-column v-if="checkPer(['admin','appInfo:edit','appInfo:del'])" label="操作" width="150px" align="center">
           <template slot-scope="scope">
@@ -161,7 +172,7 @@ import pagination from '@crud/Pagination'
 import DateRangePicker from '@/components/DateRangePicker/index.vue'
 import checkPermission from '@/utils/permission'
 
-const defaultForm = { accountId: null, appName: null, accountUsername: null, accountPassword: null, accountStatus: null, saleFee: null, createdAt: null, updatedAt: null, fullName: null, ssn: null, birthDate: null, addressLine1: null, addressLine2: null, city: null, state: null, postalCode: null, phoneNumber: null, email: null, bankAccountNumber: null, bankRoutingNumber: null, governmentIdNumber: null, securityQuestion: null, securityAnswer: null, remark: null }
+const defaultForm = { accountId: null, appName: null, accountUsername: null, accountPassword: null, accountStatus: null, saleFee: null, createdAt: null, updatedAt: null, fullName: null, ssn: null, birthDate: null, addressLine1: null, addressLine2: null, city: null, state: null, postalCode: null, phoneNumber: null, email: null, bankAccountNumber: null, bankRoutingNumber: null, governmentIdNumber: null, remark: null, buyerName: null, apiUrl: null }
 export default {
   name: 'AppInfo',
   components: { DateRangePicker, pagination, crudOperation, rrOperation, udOperation },
@@ -222,10 +233,13 @@ export default {
       delete this.crud.query.createTime
 
       console.log('最终查询参数:', this.crud.query) // 添加日志
+      console.log(this.crud.data)
 
       return true // 确保刷新成功
     },
     [CRUD.HOOK.afterRefresh](response) {
+      console.log('afterRefresh')
+      console.log(this.crud.data)
       // 可选：在刷新后处理响应数据
     }
   }

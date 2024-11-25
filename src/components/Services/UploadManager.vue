@@ -70,6 +70,7 @@
 <script>
 import { mapGetters } from 'vuex'
 import { uploadFile } from '@/api/upload/upload'
+import AliOSSUploader from '@/utils/alioss'
 
 export default {
   name: 'UploadManager',
@@ -86,7 +87,12 @@ export default {
       uploadedFiles: [], // 存储成功上传的文件信息
       selectedStorageType: '',
       multiple: true, // 启用多文件选择
-      loading: false
+      loading: false,
+      ossUploader: new AliOSSUploader(),
+      uploadStatus: {
+        paused: false,
+        currentFile: null
+      }
     }
   },
   computed: {
@@ -152,21 +158,37 @@ export default {
 
           const response = await uploadFile(formData, {
             action: this.action,
-            onUploadProgress: (event) => this.handleUploadProgress(event, file)
+            onUploadProgress: (progressEvent) => {
+              // 处理阿里云和普通上传的进度回调
+              const percent = progressEvent.percent ||
+                Math.round((progressEvent.loaded / progressEvent.total) * 100)
+              this.$set(this.uploadProgress, file.name, percent)
+            }
           })
           this.handleSuccess(response, file)
         }
       } catch (error) {
         this.handleError(error)
       } finally {
-        // 清除 fileList，避免重复上传
         this.fileList = []
         this.loading = false
       }
     },
     handleSuccess(response, file) {
-      console.log('Upload response:', response)
+      // 处理阿里云上传响应
+      if (this.selectedStorageType === 'aliyun') {
+        this.$message.success('文件上传成功')
+        this.uploadedFiles.push({
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.raw.type || this.getFileExtension(file.name),
+          url: response.url // 阿里云返回的文件URL
+        })
+        this.uploadProgress[file.name] = 100
+        return
+      }
 
+      // 处理其他存储方式的响应
       const { status, message } = response
       const fileData = response.data
 
@@ -195,6 +217,84 @@ export default {
     closeDialog() {
       this.uploadDialogVisible = false
       this.resetUpload()
+    },
+    async customUpload({ file }) {
+      this.uploadStatus.currentFile = file
+      this.uploadStatus.paused = false
+
+      try {
+        const result = await this.ossUploader.multipartUpload(
+          file,
+          (progress) => {
+            // 更新文件的上传进度
+            const targetFile = this.fileList.find(item => item.uid === file.uid)
+            if (targetFile) {
+              targetFile.percentage = progress.percent
+            }
+          }
+        )
+
+        this.$message.success('上传成功')
+        // 更新文件状态
+        const targetFile = this.fileList.find(item => item.uid === file.uid)
+        if (targetFile) {
+          targetFile.status = 'success'
+          targetFile.url = result.url
+        }
+      } catch (error) {
+        // 如果是网络错误，标记为暂停状态
+        if (error.code === 'RequestTimeoutError' ||
+            error.code === 'ConnectionTimeoutError') {
+          this.uploadStatus.paused = true
+          this.$message.warning('上传已暂停，您可以稍后继续上传')
+        } else {
+          this.$message.error(error.message)
+        }
+      }
+    },
+
+    async resumeUpload() {
+      if (!this.uploadStatus.currentFile) return
+
+      try {
+        await this.ossUploader.resumeUpload(
+          this.uploadStatus.currentFile,
+          (progress) => {
+            // 更新进度
+            const targetFile = this.fileList.find(
+              item => item.uid === this.uploadStatus.currentFile.uid
+            )
+            if (targetFile) {
+              targetFile.percentage = progress.percent
+            }
+          }
+        )
+
+        this.uploadStatus.paused = false
+        this.$message.success('上传完成')
+      } catch (error) {
+        this.$message.error(error.message)
+      }
+    },
+
+    handleRemove(file) {
+      // 取消上传并清除断点信息
+      this.ossUploader.cancelUpload(file)
+      const index = this.fileList.findIndex(item => item.uid === file.uid)
+      if (index > -1) {
+        this.fileList.splice(index, 1)
+      }
+    },
+
+    beforeUpload(file) {
+      // 添加文件到列表
+      this.fileList.push({
+        uid: file.uid,
+        name: file.name,
+        status: 'ready',
+        percentage: 0
+      })
+      return true
     }
   }
 }

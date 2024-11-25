@@ -1,9 +1,18 @@
 import request from '@/utils/request'
+import AliOSSUploader from '@/utils/alioss'
+
+const ossUploader = new AliOSSUploader()
 
 // 通用文件上传接口，根据 action 动态选择上传路径
 export async function uploadFile(data, { action, onUploadProgress }) {
+  // 如果是阿里云上传
+  if (action.includes('aliyun')) {
+    const file = data.get('file')
+    return ossUploader.multipartUpload(file, onUploadProgress)
+  }
+  // 其他存储方式保持不变
   return request({
-    url: action, // 动态 URL，根据不同的存储位置传入不同的路径
+    url: action,
     method: 'post',
     data,
     onUploadProgress

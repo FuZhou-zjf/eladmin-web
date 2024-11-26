@@ -249,7 +249,7 @@
     <!-- 分页组件 -->
     <pagination />
     <!-- 上传组件 -->
-    <UploadManager ref="uploadManager" :upload-options="uploadOptions" />
+    <UploadManager ref="uploadManager" :upload-options="uploadOptions" :action="uploadAction" />
   </div>
 </template>
 
@@ -439,7 +439,16 @@ export default {
       initialReferrerName: '',
       initialReferrerInfo: '',
       canViewOrderAmount: false,
-      createTime: []
+      createTime: [],
+      uploadAction: process.env.VUE_APP_BASE_API + '/api/localStorage/upload',
+      uploadOptions: {
+        multiple: true,
+        autoUpload: false,
+        showFileList: true,
+        limit: 10,
+        fileTypes: ['*'],
+        maxSize: 100 * 1024 * 1024
+      }
     }
   },
 
@@ -709,7 +718,7 @@ export default {
 
         return true
       } catch (error) {
-        console.error('验证失败:', error)
+        console.error('证失败:', error)
         this.$message.error('验证卖家或推荐人信息时出错，请稍后重试')
         return false
       }

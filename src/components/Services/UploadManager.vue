@@ -16,16 +16,17 @@
         <el-form-item label="选择文件">
           <el-upload
             ref="fileUpload"
-            :action="action"
+            :action="uploadAction"
             :file-list="fileList"
             :auto-upload="false"
             :multiple="true"
             :on-change="handleFileChange"
             :on-remove="handleFileRemove"
-            accept=".pdf,.png,.jpg,.jpeg,.zip,.rar,.7z,.tar,.gz,.bmp,.gif,.tiff,.svg,.webp"
+            :before-upload="beforeUpload"
+            accept="*"
           >
             <el-button size="small" type="primary">选择文件</el-button>
-            <div slot="tip" class="el-upload__tip">支持多种文件格式，每次不超过15MB。</div>
+            <div slot="tip" class="el-upload__tip">支持所有文件格式上传</div>
           </el-upload>
         </el-form-item>
 
@@ -34,25 +35,23 @@
           <div class="uploaded-files-container">
             <div v-for="file in fileList" :key="file.name">
               <div>文件名：{{ file.name }}</div>
-              <div>大小：{{ file.size || '未知大小' }}</div>
-              <div>类型：{{ file.raw.type || getFileExtension(file.name) || '未知类型' }}</div>
+              <div>大小：{{ formatFileSize(file.size) || '未知大小' }}</div>
+              <div>类型：{{ file.type || getFileExtension(file.name) || '未知类型' }}</div>
               <div>上传进度：<el-progress :percentage="uploadProgress[file.name] || 0" /></div>
             </div>
           </div>
         </el-form-item>
 
-        <!-- 已上传文件列表，增加滚动条 -->
+        <!-- 已上传文件列表 -->
         <el-form-item label="已上传文件">
           <div class="uploaded-files-container">
             <el-table :data="uploadedFiles" size="small" style="width: 100%">
               <el-table-column prop="fileName" label="文件名" />
               <el-table-column prop="fileSize" label="大小" />
               <el-table-column prop="fileType" label="类型" />
-              <el-table-column label="状态">
-                <template #default="scope">
-                  <span>上传成功</span>
-                </template>
-              </el-table-column>
+              <el-table-column prop="status" label="状态" />
+              <el-table-column prop="createTime" label="上传时间" />
+              <el-table-column prop="path" label="存储路径" show-overflow-tooltip />
             </el-table>
           </div>
         </el-form-item>
@@ -70,29 +69,26 @@
 <script>
 import { mapGetters } from 'vuex'
 import { uploadFile } from '@/api/upload/upload'
-import AliOSSUploader from '@/utils/alioss'
 
 export default {
   name: 'UploadManager',
+  props: {
+    uploadOptions: {
+      type: Object,
+      default: () => ({})
+    }
+  },
   data() {
     return {
       uploadDialogVisible: false,
-      uploadForm: {
-        fileName: '',
-        fileSize: 0,
-        fileType: ''
-      },
+      uploadForm: {},
       fileList: [], // 存储选中的文件列表
       uploadProgress: {}, // 存储每个文件的上传进度
       uploadedFiles: [], // 存储成功上传的文件信息
       selectedStorageType: '',
       multiple: true, // 启用多文件选择
       loading: false,
-      ossUploader: new AliOSSUploader(),
-      uploadStatus: {
-        paused: false,
-        currentFile: null
-      }
+      uploadAction: process.env.VUE_APP_BASE_API + '/api/localStorage/upload' // 添加上传地址
     }
   },
   computed: {
@@ -116,17 +112,13 @@ export default {
       this.uploadDialogVisible = true
     },
     resetUpload() {
-      this.uploadForm = {
-        fileName: '',
-        fileSize: 0,
-        fileType: ''
-      }
+      this.uploadForm = {}
       this.fileList = []
       this.uploadProgress = {}
       this.uploadedFiles = [] // 清除已上传文件列表
     },
     handleFileChange(file, fileList) {
-      // 更新文件列表，避免重复选择相同文件
+      // 更新文件列表
       this.fileList = fileList
     },
     handleFileRemove(file, fileList) {
@@ -134,9 +126,6 @@ export default {
       if (fileList.length === 0) {
         this.resetUpload()
       }
-    },
-    handleUploadProgress(event, file) {
-      this.$set(this.uploadProgress, file.name, Math.round((event.loaded / event.total) * 100))
     },
     getFileExtension(name) {
       const parts = name.split('.')
@@ -159,50 +148,63 @@ export default {
           const response = await uploadFile(formData, {
             action: this.action,
             onUploadProgress: (progressEvent) => {
-              // 处理阿里云和普通上传的进度回调
               const percent = progressEvent.percent ||
                 Math.round((progressEvent.loaded / progressEvent.total) * 100)
               this.$set(this.uploadProgress, file.name, percent)
             }
           })
-          this.handleSuccess(response, file)
+
+          console.log('上传响应：', response)
+
+          if (response && response.data && response.data.success) {
+            // 上传成功，处理文件信息
+            this.handleSuccess(response.data.data, file)
+            // 从文件列表中移除已上传的文件
+            this.fileList = this.fileList.filter(f => f.name !== file.name)
+            // 更新 el-upload 组件的文件列表
+            this.$refs.fileUpload.clearFiles()
+            this.$refs.fileUpload.uploadFiles = this.fileList
+          } else {
+            const errorMessage = response && response.data && response.data.message
+            throw new Error(errorMessage || '上传失败001')
+          }
+        }
+
+        // 如果所有文件都上传成功，清空进度信息
+        if (this.fileList.length === 0) {
+          this.uploadProgress = {}
         }
       } catch (error) {
         this.handleError(error)
       } finally {
-        this.fileList = []
         this.loading = false
       }
     },
-    handleSuccess(response, file) {
-      // 处理阿里云上传响应
-      if (this.selectedStorageType === 'aliyun') {
-        this.$message.success('文件上传成功')
-        this.uploadedFiles.push({
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.raw.type || this.getFileExtension(file.name),
-          url: response.url // 阿里云返回的文件URL
-        })
-        this.uploadProgress[file.name] = 100
-        return
-      }
+    handleSuccess(fileInfo, file) {
+      // 更新已上传文件列表，使用后端返回的详细信息
+      this.uploadedFiles.push({
+        fileName: fileInfo.realName || file.name,
+        fileSize: fileInfo.size || this.formatFileSize(file.size),
+        fileType: fileInfo.type || fileInfo.suffix || this.getFileExtension(file.name),
+        status: '已成功',
+        createTime: fileInfo.createTime,
+        path: fileInfo.path,
+        id: fileInfo.id
+      })
 
-      // 处理其他存储方式的响应
-      const { status, message } = response
-      const fileData = response.data
+      // 设置上传进度为100%
+      this.$set(this.uploadProgress, file.name, 100)
 
-      if (status === 201 || status === 200) {
-        this.$message.success(message || '文件上传成功')
-        this.uploadedFiles.push({
-          fileName: fileData.realName,
-          fileSize: fileData.size,
-          fileType: fileData.type || this.getFileExtension(fileData.realName)
-        })
-        this.uploadProgress[file.name] = 100
-      } else {
-        this.$message.error(message || '上传失败，请稍后重试')
-      }
+      // 使用后端返回的信息构建成功提示
+      const successMsg = `文件 ${fileInfo.name} 上传成功！
+        \n文件大小：${fileInfo.size}
+        \n存储路径：${fileInfo.path}`
+      this.$message({
+        message: successMsg,
+        type: 'success',
+        duration: 5000,
+        showClose: true
+      })
     },
     handleError(error) {
       let msg = '上传失败，请稍后重试'
@@ -218,83 +220,26 @@ export default {
       this.uploadDialogVisible = false
       this.resetUpload()
     },
-    async customUpload({ file }) {
-      this.uploadStatus.currentFile = file
-      this.uploadStatus.paused = false
-
-      try {
-        const result = await this.ossUploader.multipartUpload(
-          file,
-          (progress) => {
-            // 更新文件的上传进度
-            const targetFile = this.fileList.find(item => item.uid === file.uid)
-            if (targetFile) {
-              targetFile.percentage = progress.percent
-            }
-          }
-        )
-
-        this.$message.success('上传成功')
-        // 更新文件状态
-        const targetFile = this.fileList.find(item => item.uid === file.uid)
-        if (targetFile) {
-          targetFile.status = 'success'
-          targetFile.url = result.url
-        }
-      } catch (error) {
-        // 如果是网络错误，标记为暂停状态
-        if (error.code === 'RequestTimeoutError' ||
-            error.code === 'ConnectionTimeoutError') {
-          this.uploadStatus.paused = true
-          this.$message.warning('上传已暂停，您可以稍后继续上传')
-        } else {
-          this.$message.error(error.message)
-        }
-      }
-    },
-
-    async resumeUpload() {
-      if (!this.uploadStatus.currentFile) return
-
-      try {
-        await this.ossUploader.resumeUpload(
-          this.uploadStatus.currentFile,
-          (progress) => {
-            // 更新进度
-            const targetFile = this.fileList.find(
-              item => item.uid === this.uploadStatus.currentFile.uid
-            )
-            if (targetFile) {
-              targetFile.percentage = progress.percent
-            }
-          }
-        )
-
-        this.uploadStatus.paused = false
-        this.$message.success('上传完成')
-      } catch (error) {
-        this.$message.error(error.message)
-      }
-    },
-
-    handleRemove(file) {
-      // 取消上传并清除断点信息
-      this.ossUploader.cancelUpload(file)
-      const index = this.fileList.findIndex(item => item.uid === file.uid)
-      if (index > -1) {
-        this.fileList.splice(index, 1)
-      }
-    },
-
     beforeUpload(file) {
-      // 添加文件到列表
-      this.fileList.push({
-        uid: file.uid,
-        name: file.name,
-        status: 'ready',
-        percentage: 0
-      })
+      // 文件大小检查
       return true
+    },
+    formatFileSize(size) {
+      if (typeof size === 'string') {
+        return size.trim()
+      } else if (typeof size === 'number') {
+        if (size < 1024) {
+          return size + ' B'
+        } else if (size < 1024 * 1024) {
+          return (size / 1024).toFixed(2) + ' KB'
+        } else if (size < 1024 * 1024 * 1024) {
+          return (size / (1024 * 1024)).toFixed(2) + ' MB'
+        } else {
+          return (size / (1024 * 1024 * 1024)).toFixed(2) + ' GB'
+        }
+      } else {
+        return '未知大小'
+      }
     }
   }
 }
@@ -309,3 +254,4 @@ export default {
   overflow-y: auto; /* 超出高度时出现垂直滚动条 */
 }
 </style>
+

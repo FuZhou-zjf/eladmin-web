@@ -41,8 +41,8 @@
         <!-- 日期范围选择器 -->
         <label class="el-form-item-label">交易日期范围</label>
         <date-range-picker v-model="crud.query.createTime" class="date-item" value-format="yyyy-MM-dd HH:mm:ss" />
-        <label class="el-form-item-label">卖家全名</label>
-        <el-input v-model="query.fullName" clearable placeholder="卖家真实名称" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
+        <label class="el-form-item-label">卖家昵称</label>
+        <el-input v-model="query.fullName" clearable placeholder="卖家昵称" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
         <label class="el-form-item-label">SSN或EIN</label>
         <el-input v-model="query.ssn" clearable placeholder="SSN或EIN" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
         <rrOperation :crud="crud" />
@@ -52,7 +52,7 @@
       <!--表单组件-->
       <el-dialog :close-on-click-modal="false" :before-close="crud.cancelCU" :visible.sync="crud.status.cu > 0" :title="crud.status.title" width="500px">
         <el-form ref="form" :model="form" :rules="rules" size="small" label-width="80px">
-          <el-form-item label="App名称">
+          <el-form-item label="App名称" prop="appName">
             <el-select v-model="form.appName" filterable placeholder="请选择">
               <el-option
                 v-for="item in dict.bus_appName"
@@ -62,13 +62,13 @@
               />
             </el-select>
           </el-form-item>
-          <el-form-item label="账号名">
+          <el-form-item label="账号名" prop="accountUsername">
             <el-input v-model="form.accountUsername" style="width: 370px;" />
           </el-form-item>
-          <el-form-item label="账号密码">
+          <el-form-item label="账号密码" prop="accountPassword">
             <el-input v-model="form.accountPassword" style="width: 370px;" />
           </el-form-item>
-          <el-form-item label="账号状态">
+          <el-form-item label="账号状态" prop="accountStatus">
             <el-select v-model="form.accountStatus" filterable placeholder="请选择">
               <el-option
                 v-for="item in dict.bus_order_status"
@@ -81,7 +81,7 @@
           <el-form-item label="售出金额">
             <el-input v-model="form.saleFee" style="width: 370px;" />
           </el-form-item>
-          <el-form-item label="全名">
+          <el-form-item label="卖家昵称" prop="fullName">
             <el-input v-model="form.fullName" style="width: 370px;" />
           </el-form-item>
           <el-form-item label="SSN或EIN">
@@ -129,18 +129,18 @@
         <el-table-column prop="saleFee" label="售出金额" />
         <el-table-column prop="createdAt" label="创建时间" />
         <el-table-column prop="updatedAt" label="更新时间" />
-        <el-table-column prop="fullName" label="卖家全名" />
+        <el-table-column prop="fullName" label="卖家昵称" />
         <el-table-column prop="ssn" label="SSN或EIN" />
         <el-table-column prop="phoneNumber" label="电话号码" />
         <el-table-column prop="apiUrl" label="API URL">
           <template #default="scope">
             <el-link
               type="primary"
-              :href="scope.row.apiUrl"
+              :href="getApiUrl(scope.row.apiUrl)"
               target="_blank"
               :underline="false"
             >
-              {{ scope.row.apiUrl }}
+              {{ getPhoneNumber(scope.row.apiUrl) }}
             </el-link>
           </template>
         </el-table-column>
@@ -189,6 +189,21 @@ export default {
         del: ['admin', 'appInfo:del']
       },
       rules: {
+        appName: [
+          { required: true, message: '请输入App名称', trigger: 'blur' }
+        ],
+        accountUsername: [
+          { required: true, message: '请输入账号名', trigger: 'blur' }
+        ],
+        accountPassword: [
+          { required: true, message: '请输入账号密码', trigger: 'blur' }
+        ],
+        accountStatus: [
+          { required: true, message: '请选择账号状态', trigger: 'change' }
+        ],
+        fullName: [
+          { required: true, message: '请输入卖家昵称', trigger: 'blur' }
+        ]
       },
       queryTypeOptions: [
         { key: 'appName', display_name: 'App名称' },
@@ -241,6 +256,16 @@ export default {
       console.log('afterRefresh')
       console.log(this.crud.data)
       // 可选：在刷新后处理响应数据
+    },
+    getPhoneNumber(url) {
+      if (!url) return ''
+      const parts = url.split('----')
+      return parts[0] || ''
+    },
+    getApiUrl(url) {
+      if (!url) return ''
+      const parts = url.split('----')
+      return parts[1] || ''
     }
   }
 }

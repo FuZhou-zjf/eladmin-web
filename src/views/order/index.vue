@@ -13,18 +13,25 @@
           class="filter-item"
           @keyup.enter.native="crud.toQuery"
         />
-        <label class="el-form-item-label">账号名</label>
-        <el-input
-          v-model="crud.query.orderAccountUsername"
+        <label class="el-form-item-label">App名称</label>
+        <el-select
+          v-model="crud.query.orderAppName"
           clearable
-          placeholder="账号名"
+          placeholder="请选择App名称"
           style="width: 185px;"
           class="filter-item"
-          @keyup.enter.native="crud.toQuery"
-        />
+          @change="crud.toQuery"
+        >
+          <el-option
+            v-for="item in dict.bus_appName"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
         <label class="el-form-item-label">卖家名称</label>
         <el-input
-          v-model="crud.query.orderSellerName"
+          v-model="crud.query.orderSellerNickname"
           clearable
           placeholder="卖家名称"
           style="width: 185px;"
@@ -114,9 +121,16 @@
         <el-form-item label="支付方式" prop="orderPaymentMethod">
           <el-input v-model="crud.form.orderPaymentMethod" style="width: 370px;" />
         </el-form-item>
-        <el-form-item label="紧急联系方式" prop="orderContactOther">
-          <el-input v-model="crud.form.orderContactOther" style="width: 370px;" />
+        <el-form-item label="佣金" prop="orderCommission">
+          <el-input
+            v-model="crud.form.orderCommission"
+            style="width: 370px;"
+            :disabled="!canEditStatus"
+          />
         </el-form-item>
+        <!-- <el-form-item label="紧急联系方式" prop="orderContactOther">
+          <el-input v-model="crud.form.orderContactOther" style="width: 370px;" />
+        </el-form-item> -->
         <el-form-item label="推荐人名称" prop="orderReferrerName">
           <el-input
             v-model="crud.form.orderReferrerName"
@@ -144,16 +158,9 @@
             :disabled="!canEditStatus"
           />
         </el-form-item>
-        <el-form-item label="订单金额" prop="orderAmount">
+        <el-form-item label="员工收入" prop="orderAmount">
           <el-input
             v-model="crud.form.orderAmount"
-            style="width: 370px;"
-            :disabled="!canEditStatus"
-          />
-        </el-form-item>
-        <el-form-item label="佣金" prop="orderCommission">
-          <el-input
-            v-model="crud.form.orderCommission"
             style="width: 370px;"
             :disabled="!canEditStatus"
           />
@@ -215,7 +222,7 @@
       <el-table-column prop="orderContactInfo" label="卖家联系方式" />
       <el-table-column prop="orderSellerSsn" label="卖家SSN" />
       <el-table-column prop="orderPaymentMethod" label="支付方式" />
-      <el-table-column prop="orderContactOther" label="紧急联系方式" />
+      <!-- <el-table-column prop="orderContactOther" label="紧急联系方式" /> -->
       <!--      <el-table-column prop="orderReferrerName" label="推荐人名称" />-->
       <el-table-column prop="orderReferrerNickname" label="推荐人昵称">
         <template slot-scope="scope">
@@ -225,7 +232,11 @@
       <el-table-column prop="orderReferrerInfo" label="推荐人联系方式" />
       <el-table-column prop="orderReferrerMethod" label="推荐人支付方式" />
       <el-table-column v-if="canViewOrderAmount" prop="orderReferralFee" label="推荐费" />
-      <el-table-column v-if="canViewOrderAmount" prop="orderAmount" label="订单金额" />
+      <el-table-column v-if="canViewOrderAmount" prop="orderAmount" label="员工收入">
+        <template slot-scope="scope">
+          <span>{{ scope.row.orderAmount }}</span>
+        </template>
+      </el-table-column>
       <el-table-column v-if="canViewOrderAmount" prop="orderCommission" label="佣金" />
       <el-table-column prop="orderCreatedAt" label="创建时间" />
       <el-table-column prop="orderUpdatedAt" label="更新时间" />

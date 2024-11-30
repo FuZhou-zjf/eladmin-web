@@ -6,9 +6,19 @@ import { getToken } from '@/utils/auth'
 const ossUploader = new AliOSSUploader()
 
 // 处理本地分片上传
-async function handleLocalChunkUpload(file, action, onUploadProgress) {
+async function handleLocalChunkUpload(file, action, onUploadProgress, formData) {
   return new Promise((resolve, reject) => {
     let isCompleted = false
+
+    // 从 formData 中获取修改后的文件名
+    const newFileName = formData.get('name')
+    const originalName = formData.get('originalName')
+
+    console.log('分片上传文件信息：', {
+      newFileName,
+      originalName,
+      rawFileName: file.name
+    })
 
     const uploader = new FineUploader.FineUploaderBasic({
       debug: true,
@@ -16,6 +26,11 @@ async function handleLocalChunkUpload(file, action, onUploadProgress) {
         endpoint: `${action}/chunk`,
         customHeaders: {
           Authorization: getToken()
+        },
+        params: {
+          // 传递文件名信息给后端
+          name: newFileName,
+          originalName: originalName
         }
       },
       chunking: {
@@ -27,7 +42,7 @@ async function handleLocalChunkUpload(file, action, onUploadProgress) {
       },
       callbacks: {
         onComplete: function(id, name, responseJson) {
-          console.log('上传完成:', { id, name, responseJson })
+          console.log('分片上传完成:', { id, name, responseJson })
           if (isCompleted) {
             return
           }
@@ -35,11 +50,17 @@ async function handleLocalChunkUpload(file, action, onUploadProgress) {
           if (responseJson && responseJson.success) {
             isCompleted = true
             resolve({
-              data: responseJson
+              data: {
+                success: true,
+                data: {
+                  ...responseJson.data,
+                  name: newFileName
+                }
+              }
             })
           } else {
             const errorMessage = responseJson && responseJson.message
-            reject(new Error(errorMessage || '上传失败003'))
+            reject(new Error(errorMessage || '上传失败'))
           }
         },
         onError: function(id, name, errorReason, xhr) {
@@ -89,20 +110,26 @@ async function handleLocalChunkUpload(file, action, onUploadProgress) {
 // 通用文件上传接口
 export async function uploadFile(data, { action, onUploadProgress }) {
   const file = data.get('file')
+  const fileName = data.get('name')
+  const originalName = data.get('originalName')
+
+  console.log('开始上传文件：', {
+    fileName,
+    originalName,
+    size: file.size
+  })
 
   // 1. 阿里云上传保持原样
   if (action.includes('aliyun')) {
     return ossUploader.multipartUpload(file, onUploadProgress)
   }
 
-  // 2. 只有当满足以下两个条件时才使用分片上传：
-  // - 是本地存储（不是阿里云）
-  // - 文件大于3MB
+  // 2. 分片上传条件判断
   if (!action.includes('aliyun') && file.size > 3 * 1024 * 1024) {
-    return handleLocalChunkUpload(file, action, onUploadProgress)
+    return handleLocalChunkUpload(file, action, onUploadProgress, data)
   }
 
-  // 3. 其他情况保持原有的上传方式
+  // 3. 普通上传
   return request({
     url: action,
     method: 'post',

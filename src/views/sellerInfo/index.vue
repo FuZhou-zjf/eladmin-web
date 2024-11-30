@@ -6,8 +6,8 @@
         <!-- 搜索 -->
         <label class="el-form-item-label">卖家ID</label>
         <el-input v-model="query.sellerId" clearable placeholder="卖家ID" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
-        <label class="el-form-item-label">卖家姓名</label>
-        <el-input v-model="query.name" clearable placeholder="卖家姓名" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
+        <label class="el-form-item-label">卖家昵称</label>
+        <el-input v-model="query.nickName" clearable placeholder="卖家昵称" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
         <label class="el-form-item-label">联系方式</label>
         <el-input v-model="query.contactInfo" clearable placeholder="联系方式" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
         <label class="el-form-item-label">电话号码</label>
@@ -54,7 +54,8 @@
       <!--表格渲染-->
       <el-table ref="table" v-loading="crud.loading" :data="crud.data" size="small" style="width: 100%;" @selection-change="crud.selectionChangeHandler">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="name" label="卖家姓名" />
+        <el-table-column prop="sellerId" label="卖家ID" />
+        <el-table-column prop="nickName" label="卖家昵称" />
         <el-table-column prop="contactInfo" label="联系方式" />
         <el-table-column prop="email" label="电子邮件" />
         <el-table-column prop="phoneNumber" label="电话号码" />
@@ -85,7 +86,7 @@ import crudOperation from '@crud/CRUD.operation'
 import udOperation from '@crud/UD.operation'
 import pagination from '@crud/Pagination'
 
-const defaultForm = { sellerId: null, name: null, contactInfo: null, email: null, phoneNumber: null, identityNumber: null, ssn: null, idFront: null, idBack: null, idHandheld: null, ssnFront: null, ssnBack: null, utilityBill: null, bankStatement: null, videoUrl: null, totalIncome: null, createdAt: null, lastUpdated: null, remarks: null, paymentMethod: null }
+const defaultForm = { sellerId: null, name: null, contactInfo: null, email: null, phoneNumber: null, identityNumber: null, ssn: null, idFront: null, idBack: null, idHandheld: null, ssnFront: null, ssnBack: null, utilityBill: null, bankStatement: null, videoUrl: null, totalIncome: null, createdAt: null, lastUpdated: null, remarks: null, paymentMethod: null, nickName: null }
 export default {
   name: 'SellerInfo',
   components: { pagination, crudOperation, rrOperation, udOperation },
@@ -104,25 +105,13 @@ export default {
         name: [
           { required: true, message: '卖家姓名不能为空', trigger: 'blur' }
         ],
-        contactInfo: [
-          { required: true, message: '联系方式不能为空', trigger: 'blur' }
-        ],
-        email: [
-          { required: true, message: '电子邮件不能为空', trigger: 'blur' }
-        ],
-        phoneNumber: [
-          { required: true, message: '电话号码不能为空', trigger: 'blur' }
-        ],
         identityNumber: [
           { required: true, message: '身份证号码不能为空', trigger: 'blur' }
-        ],
-        ssn: [
-          { required: true, message: '社会安全号不能为空', trigger: 'blur' }
         ]
       },
       queryTypeOptions: [
         { key: 'sellerId', display_name: '卖家ID' },
-        { key: 'name', display_name: '卖家姓名' },
+        { key: 'nickName', display_name: '卖家昵称' },
         { key: 'contactInfo', display_name: '联系方式' },
         { key: 'phoneNumber', display_name: '电话号码' },
         { key: 'ssn', display_name: '社会安全号' }

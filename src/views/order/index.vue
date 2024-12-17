@@ -93,11 +93,24 @@
           </el-select>
         </el-form-item>
         <el-form-item label="卖家名称" prop="orderSellerName">
-          <el-input
+          <el-autocomplete
             v-model="crud.form.orderSellerName"
             style="width: 370px;"
-            @blur="searchSeller"
-          />
+            :fetch-suggestions="handleSellerSearch"
+            :trigger-on-focus="false"
+            placeholder="请输入卖家昵称或电话后四位"
+            clearable
+            @select="handleSellerSelect"
+          >
+            <template slot-scope="{ item }">
+              <div class="suggestion-item">
+                <div class="primary">{{ item.nickname }}</div>
+                <div class="secondary">
+                  姓名: {{ item.name }} | SSN: {{ item.ssn }} | 联系方式: {{ item.contactInfo }}
+                </div>
+              </div>
+            </template>
+          </el-autocomplete>
         </el-form-item>
         <el-form-item label="卖家SSN" prop="orderSellerSsn">
           <el-input
@@ -105,7 +118,7 @@
             v-inputmask:orderSellerSsn="'999-99-9999'"
             placeholder="123-45-6789"
             style="width: 370px;"
-            @blur="searchSeller"
+            @blur="handleBlurSearch"
             @input="handleSsnInput"
           />
         </el-form-item>
@@ -132,11 +145,24 @@
           <el-input v-model="crud.form.orderContactOther" style="width: 370px;" />
         </el-form-item> -->
         <el-form-item label="推荐人名称" prop="orderReferrerName">
-          <el-input
+          <el-autocomplete
             v-model="crud.form.orderReferrerName"
             style="width: 370px;"
-            @blur="searchRecommender"
-          />
+            :fetch-suggestions="handleSellerSearch"
+            :trigger-on-focus="false"
+            placeholder="请输入推荐人昵称或电话后四位"
+            clearable
+            @select="handleReferrerSelect"
+          >
+            <template slot-scope="{ item }">
+              <div class="suggestion-item">
+                <div class="primary">{{ item.nickname }}</div>
+                <div class="secondary">
+                  姓名: {{ item.name }} | SSN: {{ item.ssn }} | 联系方式: {{ item.contactInfo }}
+                </div>
+              </div>
+            </template>
+          </el-autocomplete>
         </el-form-item>
         <el-form-item label="推荐人联系方式" prop="orderReferrerInfo">
           <el-input
@@ -144,7 +170,7 @@
             v-inputmask:orderReferrerInfo="'(+1) 999-999-9999'"
             placeholder="(+1) 123-456-7890"
             style="width: 370px;"
-            @blur="searchRecommender"
+            @blur="handleReferrerBlur"
             @input="handleReferrerContactInput"
           />
         </el-form-item>
@@ -273,8 +299,8 @@ import udOperation from '@crud/UD.operation'
 import pagination from '@crud/Pagination'
 import crudOrder from '@/api/order/order'
 import { checkSeller, checkReferrer } from '@/api/order/order'
+import { searchSeller } from '@/api/sellerInfo/sellerInfo'
 import Inputmask from 'inputmask'
-import _ from 'lodash'
 import UploadManager from '@/components/Services/UploadManager.vue'
 import DateRangePicker from '@/components/DateRangePicker/index.vue'
 
@@ -360,10 +386,10 @@ export default {
           { required: true, message: '密码不能为空', trigger: ['blur', 'change'] }
         ],
         orderSellerName: [
-          { required: true, message: '卖家名称不能为空', trigger: ['blur', 'change'] }
+          { required: true, message: '卖家名称不能为空', trigger: 'blur' }
         ],
         orderSellerSsn: [
-          { required: true, message: '卖家 SSN 不能为空', trigger: ['blur', 'change'] },
+          { required: true, message: '卖家 SSN 不能为空', trigger: 'blur' },
           {
             validator: (rule, value, callback) => {
               if (!value) {
@@ -377,7 +403,7 @@ export default {
                 }
               }
             },
-            trigger: ['blur', 'change']
+            trigger: 'blur'
           }
         ],
         orderContactInfo: [
@@ -564,134 +590,121 @@ export default {
       this.$refs.form.validateField('orderReferrerInfo')
     },
 
-    // 卖家查重方法
-    searchSeller: _.debounce(function() {
-      console.log('========== 开始查询卖家信息 ==========')
-      const sellerName = this.crud.form.orderSellerName.trim()
-      const sellerSsn = this.crud.form.orderSellerSsn.trim()
-      console.log('查询参数：', { sellerName, sellerSsn })
-
-      if (sellerName === '' || sellerSsn === '') {
-        console.log('卖家名称或SSN为空，终止查询')
-        this.canSubmit = false
+    // 搜索卖家信息
+    handleSellerSearch(queryString, cb) {
+      if (!queryString || !queryString.trim()) {
+        cb([])
         return
       }
 
-      console.log('发送查询请求...')
+      searchSeller({ keyword: queryString })
+        .then(response => {
+          const suggestions = Array.isArray(response.content)
+            ? response.content.map(item => ({
+              value: item.name,
+              nickname: item.nickname || item.name,
+              name: item.name,
+              ssn: item.ssn,
+              contactInfo: item.contactInfo,
+              paymentMethod: item.paymentMethod
+            }))
+            : []
+          cb(suggestions)
+        })
+        .catch(() => cb([]))
+    },
+
+    // 处理失去焦点时的验证
+    handleBlurSearch() {
+      const sellerName = this.crud.form.orderSellerName.trim()
+      const sellerSsn = this.crud.form.orderSellerSsn.trim()
+
+      if (sellerName === '' || sellerSsn === '') {
+        return
+      }
+
       checkSeller({
         name: sellerName,
         ssn: sellerSsn
+      }).then(response => {
+        if (response.exists) {
+          this.$message.success('卖家已存在，已自动填充相关信息')
+          this.crud.form.orderContactInfo = response.contactInfo || ''
+          this.crud.form.orderPaymentMethod = response.paymentMethod || ''
+        } else {
+          this.$message.warning('卖家不存在，您可以继续提交表单')
+        }
+      }).catch(error => {
+        console.error('查询失败:', error)
+        this.$message.error('查询卖家信息失败')
       })
-        .then(response => {
-          console.log('========== 收到卖家查询响应 ==========')
-          console.log('完整响应数据：', response)
-          console.log('更新前的表单状态：', {
-            contactInfo: this.crud.form.orderContactInfo,
-            paymentMethod: this.crud.form.orderPaymentMethod
-          })
+    },
 
-          // 直接从 response 获取数据
-          const { contactInfo, paymentMethod, exists } = response
-          console.log('解析的响应数据：', { exists, contactInfo, paymentMethod })
+    // 选择后自动填充
+    handleSellerSelect(item) {
+      if (!item) return
 
-          if (exists) {
-            this.$message.success('卖家已存在，已自动填充相关信息')
+      this.crud.form.orderSellerName = item.name
+      this.crud.form.orderSellerNickname = item.nickname
+      this.crud.form.orderSellerSsn = item.ssn
+      this.crud.form.orderContactInfo = item.contactInfo
+      this.crud.form.orderPaymentMethod = item.paymentMethod
 
-            // 直接更新表单数据
-            this.crud.form.orderContactInfo = contactInfo || ''
-            this.crud.form.orderPaymentMethod = paymentMethod || ''
+      // 验证表单
+      this.$nextTick(() => {
+        if (this.$refs.form) {
+          this.$refs.form.validateField(['orderSellerName', 'orderSellerSsn', 'orderContactInfo'])
+        }
+      })
+    },
 
-            console.log('更新后的表单状态：', {
-              contactInfo: this.crud.form.orderContactInfo,
-              paymentMethod: this.crud.form.orderPaymentMethod
-            })
+    // 处理推荐人失去焦点时的验证
+    handleReferrerBlur() {
+      const referrerName = this.crud.form.orderReferrerName.trim()
+      const referrerInfo = this.crud.form.orderReferrerInfo.trim()
 
-            this.canSubmit = true
-          } else {
-            console.log('卖家不存在')
-            this.$message.warning('卖家不存在，您可以继续提交表单')
-            this.canSubmit = true
-          }
-        })
-        .catch(error => {
-          console.error('========== 查询失败 ==========')
-          console.error('错误详情:', error)
-          this.$message.error('查询卖家信息失败')
-          this.canSubmit = false
-        })
-        .finally(() => {
-          console.log('========== 查询结束 ==========')
-          // 强制更新视图
-          this.$forceUpdate()
-        })
-    }, 500),
-
-    // 推荐人查重方法
-    searchRecommender: _.debounce(function() {
-      console.log('========== 开始查询推荐人信息 ==========')
-      const recommenderName = this.crud.form.orderReferrerName.trim()
-      const recommenderInfo = this.crud.form.orderReferrerInfo.trim()
-      console.log('查询参数：', { recommenderName, recommenderInfo })
-
-      if (recommenderName === '' || recommenderInfo === '') {
-        console.log('推荐人名称或联系方式为空，终止查询')
-        this.canSubmitRecommender = false
+      if (referrerName === '' || referrerInfo === '') {
         return
       }
 
-      console.log('发送查询请求...')
       checkReferrer({
-        name: recommenderName,
-        contactInfo: recommenderInfo
+        name: referrerName,
+        contactInfo: referrerInfo
+      }).then(response => {
+        if (response.exists) {
+          this.$message.success('推荐人已存在，已自动填充相关信息')
+          this.crud.form.orderReferrerMethod = response.paymentMethod || ''
+        } else {
+          this.$message.warning('推荐人不存在，系统将自动创建新推荐人')
+        }
+      }).catch(error => {
+        console.error('查询推荐人失败:', error)
+        this.$message.error('查询推荐人信息失败')
       })
-        .then(response => {
-          console.log('========== 收到推荐人查询响应 ==========')
-          console.log('完整响应数据：', response)
-          console.log('更新前的表单状态：', {
-            contactInfo: this.crud.form.orderReferrerInfo,
-            paymentMethod: this.crud.form.orderReferrerMethod
-          })
+    },
 
-          // 直接从 response 获取数据
-          const { contactInfo, paymentMethod, exists } = response
-          console.log('解析的响应数据：', { exists, contactInfo, paymentMethod })
+    // 选择推荐人后自动填充
+    handleReferrerSelect(item) {
+      if (!item) return
 
-          if (exists) {
-            this.$message.success('推荐人已存在，已自动填充相关信息')
+      this.crud.form.orderReferrerName = item.name
+      this.crud.form.orderReferrerNickname = item.nickname
+      this.crud.form.orderReferrerInfo = item.contactInfo
+      this.crud.form.orderReferrerSsn = item.ssn
+      this.crud.form.orderReferrerMethod = item.paymentMethod
 
-            // 直接更新表单数据
-            this.crud.form.orderReferrerInfo = contactInfo || ''
-            this.crud.form.orderReferrerMethod = paymentMethod || ''
+      // 验证表单
+      this.$nextTick(() => {
+        if (this.$refs.form) {
+          this.$refs.form.validateField(['orderReferrerName', 'orderReferrerInfo'])
+        }
+      })
+    },
 
-            console.log('更新后的表单状态：', {
-              contactInfo: this.crud.form.orderReferrerInfo,
-              paymentMethod: this.crud.form.orderReferrerMethod
-            })
-
-            this.canSubmitRecommender = true
-          } else {
-            console.log('推荐人不存在')
-            this.$message.warning('推荐人不存在，系统将自动创建新推荐人')
-            this.canSubmitRecommender = true
-          }
-        })
-        .catch(error => {
-          console.error('========== 查询失败 ==========')
-          console.error('错误详情:', error)
-          this.$message.error('查询推荐人信息失败')
-          this.canSubmitRecommender = false
-        })
-        .finally(() => {
-          console.log('========== 查询结束 ==========')
-          // 强制更新视图
-          this.$forceUpdate()
-        })
-    }, 500),
-
-    // 钩子：在提交表单前执行
+    // 修改表单提交前的验证
     async [CRUD.HOOK.beforeSubmit]() {
       try {
-        // 处理其他字段
+        // 处理字段格式
         this.crud.form.orderSellerSsn = this.crud.form.orderSellerSsn.replace(/-/g, '')
         this.crud.form.orderContactInfo = this.crud.form.orderContactInfo.replace(/\(\+1\)\s?/g, '').replace(/\D+/g, '')
         if (this.crud.form.orderReferrerInfo) {
@@ -706,31 +719,10 @@ export default {
           delete this.crud.form.orderCommission
         }
 
-        // 验证卖家和推荐人信息
-        const sellerResponse = await checkSeller({
-          name: this.crud.form.orderSellerName.trim(),
-          ssn: this.crud.form.orderSellerSsn.trim()
-        })
-
-        if (sellerResponse && sellerResponse.data && !sellerResponse.data.exists) {
-          this.$message.warning('卖家不存在，系统将自动创建新卖家')
-        }
-
-        if (this.crud.form.orderReferrerName && this.crud.form.orderReferrerInfo) {
-          const referrerResponse = await checkReferrer({
-            name: this.crud.form.orderReferrerName.trim(),
-            contactInfo: this.crud.form.orderReferrerInfo.trim()
-          })
-
-          if (referrerResponse && referrerResponse.data && !referrerResponse.data.exists) {
-            this.$message.warning('推荐人不存在，系统将自动创建新推荐人')
-          }
-        }
-
         return true
       } catch (error) {
-        console.error('证失败:', error)
-        this.$message.error('验证卖家或推荐人信息时出错，请稍后重试')
+        console.error('验证失败:', error)
+        this.$message.error('验证信息时出错，请稍后重试')
         return false
       }
     }
@@ -745,5 +737,25 @@ export default {
   position: relative;
   top: 8px;
   margin-left: -45px; /* 调整这个值来向左移动图标 */
+}
+
+.sub-text {
+  font-size: 12px;
+  color: #999;
+}
+
+.suggestion-item {
+  padding: 8px 0;
+}
+
+.primary {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.secondary {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
 }
 </style>

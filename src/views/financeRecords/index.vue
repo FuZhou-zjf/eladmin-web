@@ -3,6 +3,16 @@
     <!--工具栏-->
     <div class="head-container">
       <div v-if="crud.props.searchToggle">
+        <!-- 搜索区域 -->
+        <label class="el-form-item-label">订单编号</label>
+        <el-input
+          v-model="crud.query.orderNumber"
+          clearable
+          placeholder="订单编号"
+          style="width: 185px;"
+          class="filter-item"
+          @keyup.enter.native="crud.toQuery"
+        />
         <!-- 搜索 -->
         <label class="el-form-item-label">账户ID</label>
         <el-input v-model="query.accountId" clearable placeholder="账户ID" style="width: 185px;" class="filter-item" @keyup.enter.native="crud.toQuery" />
@@ -223,6 +233,7 @@ export default {
         // 如有必要，定义验证规则
       },
       queryTypeOptions: [
+        { key: 'orderNumber', display_name: '订单编号' },
         { key: 'accountId', display_name: '账户ID' },
         { key: 'accountType', display_name: '账户类型: 员工/卖家/推荐人' },
         { key: 'type', display_name: '交易类型: 收入/支出' },

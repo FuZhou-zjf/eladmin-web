@@ -24,4 +24,17 @@ export function edit(data) {
   })
 }
 
-export default { add, edit, del }
+// 搜索卖家信息
+export function searchSeller(params) {
+  return request({
+    url: '/api/sellerInfo',
+    method: 'get',
+    params: {
+      nickName: params.keyword,
+      page: params.page || 0,
+      size: params.size || 10
+    }
+  })
+}
+
+export default { add, edit, del, searchSeller }

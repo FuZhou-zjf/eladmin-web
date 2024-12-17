@@ -35,7 +35,7 @@
         </el-col>
         <el-col :xs="24" :sm="24" :lg="8">
           <div class="chart-wrapper">
-            <bar-chart :chart-data="barChartData" />
+            <funnel />
           </div>
         </el-col>
       </el-row>
@@ -57,9 +57,11 @@ import PanelGroup from './dashboard/PanelGroup'
 import LineChart from './dashboard/LineChart'
 import RadarChart from '@/components/Echarts/RadarChart'
 import PieChart from '@/components/Echarts/PieChart'
+// eslint-disable-next-line no-unused-vars
 import BarChart from '@/components/Echarts/BarChart'
 import request from '@/utils/request'
 import IncomeChart from '@/components/Echarts/IncomeChart'
+import Funnel from '@/components/Echarts/Funnel'
 
 export default {
   name: 'Dashboard',
@@ -68,7 +70,7 @@ export default {
     LineChart,
     RadarChart,
     PieChart,
-    BarChart,
+    Funnel,
     IncomeChart
   },
   data() {
